@@ -15,9 +15,7 @@ name: Build and Deploy
 # ============================================================================
 
 on:
-  push:
-    branches: [main]
-  workflow_dispatch:  # 允许手动触发
+  workflow_dispatch:  # 只手动触发,不在 push 时自动跑
 
 # 同一分支新的构建会取消旧的,避免重复部署
 concurrency:
