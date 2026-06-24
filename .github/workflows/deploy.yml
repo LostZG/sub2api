@@ -3,8 +3,9 @@ name: Build and Deploy
 # ============================================================================
 # Sub2API GitHub Actions 部署工作流
 # ============================================================================
-# 触发:push 到 main 分支,或在 Actions 页面手动触发
-# 流程:在 GitHub amd64 runner 原生构建(不用 QEMU)→ 推送 GHCR → SSH 部署
+# 触发:Actions 页面手动触发(选 main 分支会部署生产;选 dev 等分支只构建镜像不部署)
+# 镜像 tag:main → :latest(供生产拉取);其他分支 → :<分支名>(如 :dev),绝不覆盖 :latest
+# 流程:在 GitHub amd64 runner 原生构建(不用 QEMU)→ 推送 GHCR → (仅 main) SSH 部署
 #
 # 需要配置的 Secrets(Settings → Secrets and variables → Actions):
 #   SSH_HOST          服务器 IP(如 154.9.26.43)
@@ -35,11 +36,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set image name (lowercase)
+      - name: Set image name and tags
         run: |
           OWNER=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')
           echo "IMAGE=ghcr.io/${OWNER}/sub2api" >> $GITHUB_ENV
           echo "SHORT_SHA=$(echo '${{ github.sha }}' | cut -c1-7)" >> $GITHUB_ENV
+          # main 分支打 :latest(供生产拉取);其他分支打 :<分支名>(如 :dev),绝不污染 :latest
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "PRIMARY_TAG=latest" >> $GITHUB_ENV
+          else
+            echo "PRIMARY_TAG=${{ github.ref_name }}" >> $GITHUB_ENV
+          fi
 
       # ============ 构建 ============
       - name: Set up Docker Buildx
@@ -59,7 +66,7 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: |
-            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ env.PRIMARY_TAG }}
             ${{ env.IMAGE }}:${{ env.SHORT_SHA }}
           build-args: |
             COMMIT=${{ github.sha }}
@@ -69,6 +76,7 @@ jobs:
 
       # ============ 部署 ============
       - name: Deploy to server
+        if: github.ref == 'refs/heads/main'  # 仅 main 分支部署生产,dev 等分支只出镜像
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -85,6 +93,7 @@ jobs:
             docker compose -f docker-compose.local.yml -f docker-compose.override.yml ps
 
       - name: Health check
+        if: github.ref == 'refs/heads/main'  # 仅 main 分支做生产健康检查
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}
