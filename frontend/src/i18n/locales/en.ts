@@ -378,6 +378,7 @@ export default {
     announcements: 'Announcements',
     apiKeys: 'API Keys',
     usage: 'Usage',
+    recharge: 'Recharge',
     redeem: 'Redeem',
     affiliate: 'Affiliate Rebates',
     affiliateManagement: 'Affiliate Rebates',
