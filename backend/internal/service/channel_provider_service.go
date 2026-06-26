@@ -202,13 +202,21 @@ func (s *ChannelProviderService) RefreshAllBalances(ctx context.Context) ([]Refr
 
 // fetchUpstreamBalance 调用 GET {base}/v1/usage 并按 fallback 规则提取余额。
 // 返回 (balance, unit, isValid, error)。balance 为 nil 表示上游未返回余额字段。
+// fetchUpstreamBalance 刷新余额，自动适配两类上游：
+//  1. sub2api 类：GET /v1/usage（顶层 remaining / quota.remaining）
+//  2. NewAPI(OneAPI 系) 类：/v1/usage 不存在(404) → 回退到 OpenAI 兼容 billing 接口
+//     GET /v1/dashboard/billing/subscription (hard_limit_usd) + /v1/dashboard/billing/usage (total_usage 美分)
+//     余额 = hard_limit_usd − total_usage/100
+//
+// URL 拼接复用 buildOpenAIEndpointURL，自动处理 base_url 是否已含 /v1 版本后缀。
+// 整个流程（含 fallback）共享一个超时，避免逐请求叠加超时。
 func (s *ChannelProviderService) fetchUpstreamBalance(ctx context.Context, source *ProviderRefreshSource) (*float64, string, bool, error) {
 	if source == nil {
 		return nil, "USD", false, infraerrors.BadRequest("CHANNEL_PROVIDER_EMPTY_SOURCE", "refresh source is nil")
 	}
 
 	apiKey := strings.TrimSpace(source.APIKey)
-	base := strings.TrimRight(strings.TrimSpace(source.BaseURL), "/")
+	base := strings.TrimSpace(source.BaseURL)
 	if apiKey == "" || base == "" {
 		return nil, "USD", false, infraerrors.BadRequest("CHANNEL_PROVIDER_INVALID_CREDENTIALS", "api_key or base_url is empty")
 	}
@@ -227,48 +235,120 @@ func (s *ChannelProviderService) fetchUpstreamBalance(ctx context.Context, sourc
 			"build http client failed: %v", err)
 	}
 
-	endpoint := base + "/v1/usage"
 	callCtx, cancel := context.WithTimeout(ctx, channelProviderRefreshTimeout)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(callCtx, http.MethodGet, endpoint, nil)
+	// 1) sub2api 类：GET /v1/usage
+	if balance, unit, isValid, hit, err := s.tryUsageEndpoint(callCtx, client, apiKey, base); err != nil {
+		return nil, "USD", false, err
+	} else if hit {
+		return balance, unit, isValid, nil
+	}
+
+	// 2) NewAPI 类：/v1/usage 不存在，回退到 OpenAI 兼容 billing 接口
+	return s.tryNewAPIBilling(callCtx, client, apiKey, base)
+}
+
+// tryUsageEndpoint 请求 /v1/usage（sub2api 类上游接口）。
+// hit=true 表示端点存在并已解析；hit=false 表示 404，调用方应尝试 billing 回退。
+func (s *ChannelProviderService) tryUsageEndpoint(ctx context.Context, client *http.Client, apiKey, base string) (balance *float64, unit string, isValid bool, hit bool, err error) {
+	endpoint := buildOpenAIEndpointURL(base, "/v1/usage")
+	statusCode, body, getErr := doUpstreamGet(ctx, client, apiKey, endpoint)
+	if getErr != nil {
+		return nil, "USD", false, false, infraerrors.Newf(http.StatusBadGateway, "CHANNEL_PROVIDER_REQUEST_FAILED",
+			"upstream /v1/usage request failed: %v", getErr)
+	}
+	if statusCode == http.StatusNotFound {
+		return nil, "USD", false, false, nil // 端点不存在，交由调用方 fallback
+	}
+	if statusCode < 200 || statusCode >= 300 {
+		snippet := truncateBody(string(body), 240)
+		slog.Warn("channel_provider_refresh_non_2xx",
+			"endpoint", "/v1/usage", "status", statusCode, "body", snippet)
+		return nil, "USD", false, false, infraerrors.Newf(http.StatusBadGateway, "CHANNEL_PROVIDER_UPSTREAM_ERROR",
+			"/v1/usage returned %d: %s", statusCode, snippet)
+	}
+
+	var payload usageResponse
+	if jsonErr := json.Unmarshal(body, &payload); jsonErr != nil {
+		snippet := truncateBody(string(body), 240)
+		return nil, "USD", false, false, infraerrors.Newf(http.StatusInternalServerError, "CHANNEL_PROVIDER_PARSE_FAILED",
+			"parse /v1/usage response failed: %v, body: %s", jsonErr, snippet)
+	}
+
+	balance, unit, isValid = extractBalance(&payload)
+	return balance, unit, isValid, true, nil
+}
+
+// tryNewAPIBilling 请求 NewAPI(OneAPI 系) 的 OpenAI 兼容 billing 接口：
+//   - GET /v1/dashboard/billing/subscription → hard_limit_usd（总额度，USD）
+//   - GET /v1/dashboard/billing/usage        → total_usage（已用，单位美分）
+//
+// 余额 = hard_limit_usd − total_usage/100。subscription 必须成功且含 hard_limit_usd；
+// usage 拉取失败不致命（按 0 已用处理）。
+func (s *ChannelProviderService) tryNewAPIBilling(ctx context.Context, client *http.Client, apiKey, base string) (*float64, string, bool, error) {
+	subEndpoint := buildOpenAIEndpointURL(base, "/v1/dashboard/billing/subscription")
+	statusCode, body, err := doUpstreamGet(ctx, client, apiKey, subEndpoint)
 	if err != nil {
-		return nil, "USD", false, infraerrors.Newf(http.StatusBadGateway, "CHANNEL_PROVIDER_REQUEST_BUILD_FAILED",
-			"build request failed: %v", err)
+		return nil, "USD", false, infraerrors.Newf(http.StatusBadGateway, "CHANNEL_PROVIDER_REQUEST_FAILED",
+			"upstream billing/subscription request failed: %v", err)
+	}
+	if statusCode == http.StatusNotFound {
+		return nil, "USD", false, infraerrors.Newf(http.StatusNotFound, "CHANNEL_PROVIDER_NO_USAGE_ENDPOINT",
+			"upstream has neither /v1/usage nor /v1/dashboard/billing/subscription")
+	}
+	if statusCode < 200 || statusCode >= 300 {
+		snippet := truncateBody(string(body), 240)
+		slog.Warn("channel_provider_refresh_non_2xx",
+			"endpoint", "/v1/dashboard/billing/subscription", "status", statusCode, "body", snippet)
+		return nil, "USD", false, infraerrors.Newf(http.StatusBadGateway, "CHANNEL_PROVIDER_UPSTREAM_ERROR",
+			"billing/subscription returned %d: %s", statusCode, snippet)
+	}
+
+	var sub billingSubscription
+	if jsonErr := json.Unmarshal(body, &sub); jsonErr != nil {
+		snippet := truncateBody(string(body), 240)
+		return nil, "USD", false, infraerrors.Newf(http.StatusInternalServerError, "CHANNEL_PROVIDER_PARSE_FAILED",
+			"parse billing/subscription failed: %v, body: %s", jsonErr, snippet)
+	}
+	if sub.HardLimitUSD == nil {
+		return nil, "USD", false, infraerrors.Newf(http.StatusInternalServerError, "CHANNEL_PROVIDER_NO_HARD_LIMIT",
+			"billing/subscription has no hard_limit_usd field: %s", truncateBody(string(body), 240))
+	}
+
+	balance := *sub.HardLimitUSD
+
+	// 拉取已用量（美分），失败不致命，按 0 处理
+	usageEndpoint := buildOpenAIEndpointURL(base, "/v1/dashboard/billing/usage")
+	if uStatus, uBody, uErr := doUpstreamGet(ctx, client, apiKey, usageEndpoint); uErr == nil && uStatus >= 200 && uStatus < 300 {
+		var usage billingUsage
+		if json.Unmarshal(uBody, &usage) == nil && usage.TotalUsage != nil {
+			balance -= *usage.TotalUsage / 100 // cent → USD
+		}
+	}
+
+	return &balance, "USD", true, nil
+}
+
+// doUpstreamGet 发起带 Bearer 鉴权的 GET，返回状态码与 body（最多 1MB，防止异常上游撑爆内存）。
+func doUpstreamGet(ctx context.Context, client *http.Client, apiKey, endpoint string) (int, []byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return 0, nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+apiKey)
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, "USD", false, infraerrors.Newf(http.StatusBadGateway, "CHANNEL_PROVIDER_REQUEST_FAILED",
-			"upstream request failed: %v", err)
+		return 0, nil, err
 	}
 	defer func() { _ = resp.Body.Close() }()
-
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20)) // 1MB 上限，防止异常上游撑爆内存
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if err != nil {
-		return nil, "USD", false, infraerrors.Newf(http.StatusBadGateway, "CHANNEL_PROVIDER_READ_BODY_FAILED",
-			"read response body failed: %v", err)
+		return resp.StatusCode, nil, err
 	}
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		snippet := truncateBody(string(body), 240)
-		slog.Warn("channel_provider_refresh_non_2xx",
-			"base_url", base, "status", resp.StatusCode, "body", snippet)
-		return nil, "USD", false, infraerrors.Newf(http.StatusBadGateway, "CHANNEL_PROVIDER_UPSTREAM_ERROR",
-			"upstream returned %d: %s", resp.StatusCode, snippet)
-	}
-
-	var payload usageResponse
-	if err := json.Unmarshal(body, &payload); err != nil {
-		snippet := truncateBody(string(body), 240)
-		return nil, "USD", false, infraerrors.Newf(http.StatusInternalServerError, "CHANNEL_PROVIDER_PARSE_FAILED",
-			"parse usage response failed: %v, body: %s", err, snippet)
-	}
-
-	balance, unit, isValid := extractBalance(&payload)
-	return balance, unit, isValid, nil
+	return resp.StatusCode, body, nil
 }
 
 // recordRefreshFailure 记录刷新失败到 last_refresh_error / is_valid，失败仅记日志。
@@ -279,15 +359,14 @@ func (s *ChannelProviderService) recordRefreshFailure(ctx context.Context, norma
 	}
 }
 
-// usageResponse 是上游 /v1/usage 响应的宽松投影。使用指针字段以区分"未返回"与"零值"。
-// 兼容多种常见格式（OneAPI/NewAPI 等）：顶层 remaining、嵌套 quota.remaining、顶层 balance。
+// usageResponse 是 sub2api 类 /v1/usage 响应的宽松投影。
+// 使用指针字段以区分"未返回"与"零值"。兼容：顶层 remaining、嵌套 quota.remaining、顶层 balance。
 type usageResponse struct {
-	Remaining *float64      `json:"remaining"`
-	Balance   *float64      `json:"balance"`
-	Unit      *string       `json:"unit"`
-	IsActive  *bool         `json:"is_active"`
-	IsValid   *bool         `json:"is_valid"`
-	Quota     *quotaBlock   `json:"quota"`
+	Remaining *float64    `json:"remaining"`
+	Balance   *float64    `json:"balance"`
+	Unit      *string     `json:"unit"`
+	IsValid   *bool       `json:"isValid"` // sub2api 返回驼峰 isValid
+	Quota     *quotaBlock `json:"quota"`
 }
 
 type quotaBlock struct {
@@ -295,10 +374,21 @@ type quotaBlock struct {
 	Unit      *string  `json:"unit"`
 }
 
-// extractBalance 按固定 fallback 顺序提取余额、单位、有效性。
+// billingSubscription 是 NewAPI(OneAPI 系) /v1/dashboard/billing/subscription 响应。
+// 只取计算余额所需的 hard_limit_usd（总额度，USD）。
+type billingSubscription struct {
+	HardLimitUSD *float64 `json:"hard_limit_usd"`
+}
+
+// billingUsage 是 NewAPI /v1/dashboard/billing/usage 响应，total_usage 单位为美分。
+type billingUsage struct {
+	TotalUsage *float64 `json:"total_usage"`
+}
+
+// extractBalance 从 /v1/usage 响应按 fallback 顺序提取余额、单位、有效性。
 //   - remaining: resp.Remaining ?? resp.Quota.Remaining ?? resp.Balance
 //   - unit:      resp.Unit ?? resp.Quota.Unit ?? "USD"
-//   - isValid:   resp.IsActive ?? resp.IsValid ?? true
+//   - isValid:   resp.IsValid ?? true
 func extractBalance(resp *usageResponse) (balance *float64, unit string, isValid bool) {
 	unit = "USD"
 	isValid = true
@@ -325,10 +415,7 @@ func extractBalance(resp *usageResponse) (balance *float64, unit string, isValid
 		unit = *resp.Quota.Unit
 	}
 
-	switch {
-	case resp.IsActive != nil:
-		isValid = *resp.IsActive
-	case resp.IsValid != nil:
+	if resp.IsValid != nil {
 		isValid = *resp.IsValid
 	}
 

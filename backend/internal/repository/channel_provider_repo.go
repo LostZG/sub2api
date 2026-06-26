@@ -117,6 +117,11 @@ func (r *channelProviderRepository) UpdateBalance(ctx context.Context, baseURL s
 // ListAggregated 聚合 accounts 表按 base_url 去重，LEFT JOIN channel_providers，
 // 返回每行 base_url + account_count + 充值/余额信息。
 //
+// 聚合对象：任何 credentials 里存了非空 base_url 的账号（主要是 upstream 上游透传
+// 类型，也涵盖 antigravity apikey 等显式填写 baseUrl 的账号）。官方直连账号
+// （OpenAI/Anthropic/Gemini 官方）的 base_url 由代码按 platform 硬编码，不在
+// credentials 里，因此天然被排除。
+//
 // 标准化规则：LOWER(TRIM(TRAILING '/' FROM TRIM(credentials->>'base_url')))
 // 必须与 service.NormalizeBaseURL 保持一致，否则去重 / 关联会错乱。
 func (r *channelProviderRepository) ListAggregated(ctx context.Context) ([]service.ChannelProviderAggregated, error) {
@@ -126,7 +131,6 @@ func (r *channelProviderRepository) ListAggregated(ctx context.Context) ([]servi
 			       COUNT(*)::BIGINT AS account_count
 			FROM accounts a
 			WHERE a.deleted_at IS NULL
-			  AND a.type = 'api_key'
 			  AND btrim(a.credentials->>'base_url') <> ''
 			GROUP BY LOWER(TRIM(TRAILING '/' FROM TRIM(a.credentials->>'base_url')))
 		)
@@ -215,7 +219,9 @@ func (r *channelProviderRepository) ListAggregated(ctx context.Context) ([]servi
 }
 
 // FindFirstActiveAPIKeyAccountByBaseURL 取该标准化 baseUrl 下第一个
-// status='active' AND type='api_key' 的账号的上游调用凭据（apiKey/baseURL/proxy）。
+// status='active' 且 credentials 含可用 api_key 的账号的上游调用凭据。
+// 不限定 type：只要 credentials 里有 base_url + api_key 即可作为刷新凭据来源
+// （主要是 upstream 上游透传账号，也涵盖其他显式填写 baseUrl+apiKey 的账号）。
 // 未找到返回 (nil, nil)。
 func (r *channelProviderRepository) FindFirstActiveAPIKeyAccountByBaseURL(ctx context.Context, normalizedBaseURL string) (*service.ProviderRefreshSource, error) {
 	rows, err := r.sql.QueryContext(ctx, `
@@ -225,7 +231,6 @@ func (r *channelProviderRepository) FindFirstActiveAPIKeyAccountByBaseURL(ctx co
 		FROM accounts a
 		LEFT JOIN proxies p ON p.id = a.proxy_id AND p.deleted_at IS NULL
 		WHERE a.deleted_at IS NULL
-		  AND a.type = 'api_key'
 		  AND a.status = 'active'
 		  AND LOWER(TRIM(TRAILING '/' FROM TRIM(a.credentials->>'base_url'))) = $1
 		  AND btrim(a.credentials->>'api_key') <> ''
