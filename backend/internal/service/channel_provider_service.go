@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -245,8 +246,15 @@ func (s *ChannelProviderService) fetchUpstreamBalance(ctx context.Context, sourc
 		return balance, unit, isValid, nil
 	}
 
-	// 2) NewAPI 类：/v1/usage 不存在，回退到 OpenAI 兼容 billing 接口
-	return s.tryNewAPIBilling(callCtx, client, apiKey, base)
+	// 2) NewAPI(OpenAI 兼容)：GET /v1/dashboard/billing/subscription + /usage
+	if balance, unit, isValid, hit, err := s.tryNewAPIBilling(callCtx, client, apiKey, base); err != nil {
+		return nil, "USD", false, err
+	} else if hit {
+		return balance, unit, isValid, nil
+	}
+
+	// 3) NewAPI(原生)：GET /api/user/self
+	return s.tryNewAPIUserSelf(callCtx, client, apiKey, base)
 }
 
 // tryUsageEndpoint 请求 /v1/usage（sub2api 类上游接口）。
@@ -285,34 +293,33 @@ func (s *ChannelProviderService) tryUsageEndpoint(ctx context.Context, client *h
 //   - GET /v1/dashboard/billing/usage        → total_usage（已用，单位美分）
 //
 // 余额 = hard_limit_usd − total_usage/100。subscription 必须成功且含 hard_limit_usd；
-// usage 拉取失败不致命（按 0 已用处理）。
-func (s *ChannelProviderService) tryNewAPIBilling(ctx context.Context, client *http.Client, apiKey, base string) (*float64, string, bool, error) {
+// usage 拉取失败不致命（按 0 已用处理）。404 时 hit=false，交由调用方继续 fallback。
+func (s *ChannelProviderService) tryNewAPIBilling(ctx context.Context, client *http.Client, apiKey, base string) (*float64, string, bool, bool, error) {
 	subEndpoint := buildOpenAIEndpointURL(base, "/v1/dashboard/billing/subscription")
 	statusCode, body, err := doUpstreamGet(ctx, client, apiKey, subEndpoint)
 	if err != nil {
-		return nil, "USD", false, infraerrors.Newf(http.StatusBadGateway, "CHANNEL_PROVIDER_REQUEST_FAILED",
+		return nil, "USD", false, false, infraerrors.Newf(http.StatusBadGateway, "CHANNEL_PROVIDER_REQUEST_FAILED",
 			"upstream billing/subscription request failed: %v", err)
 	}
 	if statusCode == http.StatusNotFound {
-		return nil, "USD", false, infraerrors.Newf(http.StatusNotFound, "CHANNEL_PROVIDER_NO_USAGE_ENDPOINT",
-			"upstream has neither /v1/usage nor /v1/dashboard/billing/subscription")
+		return nil, "USD", false, false, nil // 端点不存在，交由调用方继续 fallback
 	}
 	if statusCode < 200 || statusCode >= 300 {
 		snippet := truncateBody(string(body), 240)
 		slog.Warn("channel_provider_refresh_non_2xx",
 			"endpoint", "/v1/dashboard/billing/subscription", "status", statusCode, "body", snippet)
-		return nil, "USD", false, infraerrors.Newf(http.StatusBadGateway, "CHANNEL_PROVIDER_UPSTREAM_ERROR",
+		return nil, "USD", false, false, infraerrors.Newf(http.StatusBadGateway, "CHANNEL_PROVIDER_UPSTREAM_ERROR",
 			"billing/subscription returned %d: %s", statusCode, snippet)
 	}
 
 	var sub billingSubscription
 	if jsonErr := json.Unmarshal(body, &sub); jsonErr != nil {
 		snippet := truncateBody(string(body), 240)
-		return nil, "USD", false, infraerrors.Newf(http.StatusInternalServerError, "CHANNEL_PROVIDER_PARSE_FAILED",
+		return nil, "USD", false, false, infraerrors.Newf(http.StatusInternalServerError, "CHANNEL_PROVIDER_PARSE_FAILED",
 			"parse billing/subscription failed: %v, body: %s", jsonErr, snippet)
 	}
 	if sub.HardLimitUSD == nil {
-		return nil, "USD", false, infraerrors.Newf(http.StatusInternalServerError, "CHANNEL_PROVIDER_NO_HARD_LIMIT",
+		return nil, "USD", false, false, infraerrors.Newf(http.StatusInternalServerError, "CHANNEL_PROVIDER_NO_HARD_LIMIT",
 			"billing/subscription has no hard_limit_usd field: %s", truncateBody(string(body), 240))
 	}
 
@@ -327,7 +334,66 @@ func (s *ChannelProviderService) tryNewAPIBilling(ctx context.Context, client *h
 		}
 	}
 
+	return &balance, "USD", true, true, nil
+}
+
+// tryNewAPIUserSelf 请求 NewAPI 原生接口 GET /api/user/self。
+// 与 /v1/* 不同，/api/* 是管理路径，需从 base_url 提取 host（去掉 /v1 path）后拼接。
+// 鉴权：Bearer sk-xxx（多数 NewAPI 部署接受 API key）或用户 access token。
+// 返回 data.quota（NewAPI 内部计费点，充值增加、消费减少，即当前剩余余额），
+// 按默认 QuotaPerUnit=500000 换算成 USD。
+func (s *ChannelProviderService) tryNewAPIUserSelf(ctx context.Context, client *http.Client, apiKey, base string) (*float64, string, bool, error) {
+	endpoint := buildAPIPathURL(base, "/api/user/self")
+	statusCode, body, err := doUpstreamGet(ctx, client, apiKey, endpoint)
+	if err != nil {
+		return nil, "USD", false, infraerrors.Newf(http.StatusBadGateway, "CHANNEL_PROVIDER_REQUEST_FAILED",
+			"upstream /api/user/self request failed: %v", err)
+	}
+	if statusCode == http.StatusUnauthorized || statusCode == http.StatusForbidden {
+		// sk- key 被拒，说明该 NewAPI 部署要求用户 access token 而非 API key
+		return nil, "USD", false, infraerrors.Newf(http.StatusUnauthorized, "CHANNEL_PROVIDER_NEED_ACCESS_TOKEN",
+			"/api/user/self rejected api_key (HTTP %d); this NewAPI deployment likely requires a user access token instead of an sk- key", statusCode)
+	}
+	if statusCode == http.StatusNotFound {
+		return nil, "USD", false, infraerrors.Newf(http.StatusNotFound, "CHANNEL_PROVIDER_NO_USAGE_ENDPOINT",
+			"upstream supports none of /v1/usage, /v1/dashboard/billing/subscription, /api/user/self")
+	}
+	if statusCode < 200 || statusCode >= 300 {
+		snippet := truncateBody(string(body), 240)
+		slog.Warn("channel_provider_refresh_non_2xx",
+			"endpoint", "/api/user/self", "status", statusCode, "body", snippet)
+		return nil, "USD", false, infraerrors.Newf(http.StatusBadGateway, "CHANNEL_PROVIDER_UPSTREAM_ERROR",
+			"/api/user/self returned %d: %s", statusCode, snippet)
+	}
+
+	var resp userSelfResponse
+	if jsonErr := json.Unmarshal(body, &resp); jsonErr != nil {
+		snippet := truncateBody(string(body), 240)
+		return nil, "USD", false, infraerrors.Newf(http.StatusInternalServerError, "CHANNEL_PROVIDER_PARSE_FAILED",
+			"parse /api/user/self failed: %v, body: %s", jsonErr, snippet)
+	}
+	if resp.Data == nil {
+		return nil, "USD", false, infraerrors.Newf(http.StatusInternalServerError, "CHANNEL_PROVIDER_NO_QUOTA",
+			"/api/user/self response has no data field: %s", truncateBody(string(body), 240))
+	}
+
+	// NewAPI quota 是内部计费点：充值增加、消费减少，data.quota 即当前剩余余额。
+	// 默认 QuotaPerUnit = 500000（即 500000 点 = 1 USD）。
+	const newAPIQuotaPerUnit = 500000.0
+	balance := float64(resp.Data.Quota) / newAPIQuotaPerUnit
 	return &balance, "USD", true, nil
+}
+
+// buildAPIPathURL 从 base_url 提取 scheme://host（去掉 /v1 等 path 部分），拼接管理路径。
+// 用于 NewAPI 的 /api/* 接口：base_url 通常存到 /v1 这一级（推理路径），
+// 而 /api/user/self 在 host 根下，与 /v1 平级。
+func buildAPIPathURL(base, path string) string {
+	trimmed := strings.TrimSpace(base)
+	if parsed, perr := url.Parse(trimmed); perr == nil && parsed.Scheme != "" && parsed.Host != "" {
+		return parsed.Scheme + "://" + parsed.Host + "/" + strings.TrimLeft(path, "/")
+	}
+	// 解析失败兜底：直接拼接
+	return strings.TrimRight(trimmed, "/") + "/" + strings.TrimLeft(path, "/")
 }
 
 // doUpstreamGet 发起带 Bearer 鉴权的 GET，返回状态码与 body（最多 1MB，防止异常上游撑爆内存）。
@@ -383,6 +449,18 @@ type billingSubscription struct {
 // billingUsage 是 NewAPI /v1/dashboard/billing/usage 响应，total_usage 单位为美分。
 type billingUsage struct {
 	TotalUsage *float64 `json:"total_usage"`
+}
+
+// userSelfResponse 是 NewAPI 原生接口 /api/user/self 响应。
+// data.quota 是当前剩余余额（内部计费点，充值增加、消费减少）。
+type userSelfResponse struct {
+	Success bool   `json:"success"` // NewAPI 风格
+	Code    int    `json:"code"`    // OneAPI 旧风格（0=成功）
+	Message string `json:"message"`
+	Data    *struct {
+		Quota     int64 `json:"quota"`
+		UsedQuota int64 `json:"used_quota"`
+	} `json:"data"`
 }
 
 // extractBalance 从 /v1/usage 响应按 fallback 顺序提取余额、单位、有效性。
