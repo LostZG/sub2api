@@ -414,6 +414,7 @@ export default {
     paymentPlans: '订阅套餐',
     channelManagement: '渠道管理',
     channelPricing: '渠道定价',
+    channelProviders: '渠道号商',
     channelMonitor: '渠道监控',
     channelStatus: '渠道状态',
     riskControl: '风控中心',
@@ -2855,6 +2856,28 @@ export default {
         keywordBlock: '关键词拦截',
         cyberPolicy: '网络安全策略',
         error: '异常',
+      },
+    },
+
+    // Channel Providers（按 baseUrl 聚合的上游渠道商）
+    channelProviders: {
+      title: '渠道号商',
+      description: '按上游渠道商（baseUrl）维度聚合，管理充值金额与余额刷新',
+      refresh: '刷新余额',
+      refreshAll: '刷新全部',
+      refreshSuccess: '余额刷新成功',
+      refreshFailed: '刷新失败',
+      saveSuccess: '充值金额已保存',
+      noProviders: '暂无渠道号商',
+      invalidAmount: '充值金额无效，须为不小于 0 的数字',
+      refreshAllSummary: '刷新完成：成功 {ok} 个，失败 {failed} 个',
+      columns: {
+        baseUrl: 'Base URL',
+        rechargeAmount: '充值金额',
+        balance: '余额',
+        balanceCheckedAt: '检查时间',
+        accountCount: '账号数',
+        actions: '操作',
       },
     },
 

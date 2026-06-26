@@ -414,6 +414,7 @@ export default {
     paymentPlans: 'Plans',
     channelManagement: 'Channels',
     channelPricing: 'Channel Pricing',
+    channelProviders: 'Channel Providers',
     channelMonitor: 'Channel Monitor',
     channelStatus: 'Channel Status',
     riskControl: 'Risk Control',
@@ -2778,6 +2779,28 @@ export default {
         keywordBlock: 'Keyword Blocked',
         cyberPolicy: 'Cyber policy',
         error: 'Error',
+      },
+    },
+
+    // Channel Providers (upstream providers aggregated by baseUrl)
+    channelProviders: {
+      title: 'Channel Providers',
+      description: 'Aggregated by upstream provider (baseUrl); manage recharge amounts and balance refresh',
+      refresh: 'Refresh',
+      refreshAll: 'Refresh All',
+      refreshSuccess: 'Balance refreshed successfully',
+      refreshFailed: 'Refresh failed',
+      saveSuccess: 'Recharge amount saved',
+      noProviders: 'No channel providers',
+      invalidAmount: 'Invalid amount; must be a number >= 0',
+      refreshAllSummary: 'Refresh complete: {ok} succeeded, {failed} failed',
+      columns: {
+        baseUrl: 'Base URL',
+        rechargeAmount: 'Recharge',
+        balance: 'Balance',
+        balanceCheckedAt: 'Checked At',
+        accountCount: 'Accounts',
+        actions: 'Actions',
       },
     },
 

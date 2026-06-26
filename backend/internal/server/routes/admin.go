@@ -95,6 +95,9 @@ func RegisterAdminRoutes(
 		// 渠道管理
 		registerChannelRoutes(admin, h)
 
+		// 渠道号商（按 baseUrl 聚合的上游渠道商）
+		registerChannelProviderRoutes(admin, h)
+
 		// 渠道监控
 		registerChannelMonitorRoutes(admin, h)
 
@@ -619,6 +622,16 @@ func registerChannelRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		channels.POST("", h.Admin.Channel.Create)
 		channels.PUT("/:id", h.Admin.Channel.Update)
 		channels.DELETE("/:id", h.Admin.Channel.Delete)
+	}
+}
+
+func registerChannelProviderRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	providers := admin.Group("/channel-providers")
+	{
+		providers.GET("", h.Admin.ChannelProvider.List)
+		providers.PUT("/recharge", h.Admin.ChannelProvider.UpdateRechargeAmount)
+		providers.POST("/refresh", h.Admin.ChannelProvider.Refresh)
+		providers.POST("/refresh-all", h.Admin.ChannelProvider.RefreshAll)
 	}
 }
 

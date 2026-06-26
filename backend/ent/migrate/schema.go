@@ -598,6 +598,33 @@ var (
 			},
 		},
 	}
+	// ChannelProvidersColumns holds the columns for the "channel_providers" table.
+	ChannelProvidersColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "base_url", Type: field.TypeString, Size: 500},
+		{Name: "display_name", Type: field.TypeString, Nullable: true, Size: 200},
+		{Name: "recharge_amount", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(10,2)"}},
+		{Name: "balance", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(10,4)"}},
+		{Name: "balance_unit", Type: field.TypeString, Size: 20, Default: "USD"},
+		{Name: "balance_checked_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "is_valid", Type: field.TypeBool, Default: true},
+		{Name: "last_refresh_error", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
+	}
+	// ChannelProvidersTable holds the schema information for the "channel_providers" table.
+	ChannelProvidersTable = &schema.Table{
+		Name:       "channel_providers",
+		Columns:    ChannelProvidersColumns,
+		PrimaryKey: []*schema.Column{ChannelProvidersColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "channelprovider_base_url",
+				Unique:  true,
+				Columns: []*schema.Column{ChannelProvidersColumns[3]},
+			},
+		},
+	}
 	// ErrorPassthroughRulesColumns holds the columns for the "error_passthrough_rules" table.
 	ErrorPassthroughRulesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
@@ -1786,6 +1813,7 @@ var (
 		ChannelMonitorDailyRollupsTable,
 		ChannelMonitorHistoriesTable,
 		ChannelMonitorRequestTemplatesTable,
+		ChannelProvidersTable,
 		ErrorPassthroughRulesTable,
 		GroupsTable,
 		IdempotencyRecordsTable,
@@ -1858,6 +1886,9 @@ func init() {
 	}
 	ChannelMonitorRequestTemplatesTable.Annotation = &entsql.Annotation{
 		Table: "channel_monitor_request_templates",
+	}
+	ChannelProvidersTable.Annotation = &entsql.Annotation{
+		Table: "channel_providers",
 	}
 	ErrorPassthroughRulesTable.Annotation = &entsql.Annotation{
 		Table: "error_passthrough_rules",

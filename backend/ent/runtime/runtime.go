@@ -16,6 +16,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitordailyrollup"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorhistory"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorrequesttemplate"
+	"github.com/Wei-Shaw/sub2api/ent/channelprovider"
 	"github.com/Wei-Shaw/sub2api/ent/errorpassthroughrule"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/idempotencyrecord"
@@ -696,6 +697,57 @@ func init() {
 	channelmonitorrequesttemplate.DefaultBodyOverrideMode = channelmonitorrequesttemplateDescBodyOverrideMode.Default.(string)
 	// channelmonitorrequesttemplate.BodyOverrideModeValidator is a validator for the "body_override_mode" field. It is called by the builders before save.
 	channelmonitorrequesttemplate.BodyOverrideModeValidator = channelmonitorrequesttemplateDescBodyOverrideMode.Validators[0].(func(string) error)
+	channelproviderMixin := schema.ChannelProvider{}.Mixin()
+	channelproviderMixinFields0 := channelproviderMixin[0].Fields()
+	_ = channelproviderMixinFields0
+	channelproviderFields := schema.ChannelProvider{}.Fields()
+	_ = channelproviderFields
+	// channelproviderDescCreatedAt is the schema descriptor for created_at field.
+	channelproviderDescCreatedAt := channelproviderMixinFields0[0].Descriptor()
+	// channelprovider.DefaultCreatedAt holds the default value on creation for the created_at field.
+	channelprovider.DefaultCreatedAt = channelproviderDescCreatedAt.Default.(func() time.Time)
+	// channelproviderDescUpdatedAt is the schema descriptor for updated_at field.
+	channelproviderDescUpdatedAt := channelproviderMixinFields0[1].Descriptor()
+	// channelprovider.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	channelprovider.DefaultUpdatedAt = channelproviderDescUpdatedAt.Default.(func() time.Time)
+	// channelprovider.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	channelprovider.UpdateDefaultUpdatedAt = channelproviderDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// channelproviderDescBaseURL is the schema descriptor for base_url field.
+	channelproviderDescBaseURL := channelproviderFields[0].Descriptor()
+	// channelprovider.BaseURLValidator is a validator for the "base_url" field. It is called by the builders before save.
+	channelprovider.BaseURLValidator = func() func(string) error {
+		validators := channelproviderDescBaseURL.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(base_url string) error {
+			for _, fn := range fns {
+				if err := fn(base_url); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// channelproviderDescDisplayName is the schema descriptor for display_name field.
+	channelproviderDescDisplayName := channelproviderFields[1].Descriptor()
+	// channelprovider.DisplayNameValidator is a validator for the "display_name" field. It is called by the builders before save.
+	channelprovider.DisplayNameValidator = channelproviderDescDisplayName.Validators[0].(func(string) error)
+	// channelproviderDescRechargeAmount is the schema descriptor for recharge_amount field.
+	channelproviderDescRechargeAmount := channelproviderFields[2].Descriptor()
+	// channelprovider.DefaultRechargeAmount holds the default value on creation for the recharge_amount field.
+	channelprovider.DefaultRechargeAmount = channelproviderDescRechargeAmount.Default.(float64)
+	// channelproviderDescBalanceUnit is the schema descriptor for balance_unit field.
+	channelproviderDescBalanceUnit := channelproviderFields[4].Descriptor()
+	// channelprovider.DefaultBalanceUnit holds the default value on creation for the balance_unit field.
+	channelprovider.DefaultBalanceUnit = channelproviderDescBalanceUnit.Default.(string)
+	// channelprovider.BalanceUnitValidator is a validator for the "balance_unit" field. It is called by the builders before save.
+	channelprovider.BalanceUnitValidator = channelproviderDescBalanceUnit.Validators[0].(func(string) error)
+	// channelproviderDescIsValid is the schema descriptor for is_valid field.
+	channelproviderDescIsValid := channelproviderFields[6].Descriptor()
+	// channelprovider.DefaultIsValid holds the default value on creation for the is_valid field.
+	channelprovider.DefaultIsValid = channelproviderDescIsValid.Default.(bool)
 	errorpassthroughruleMixin := schema.ErrorPassthroughRule{}.Mixin()
 	errorpassthroughruleMixinFields0 := errorpassthroughruleMixin[0].Fields()
 	_ = errorpassthroughruleMixinFields0
