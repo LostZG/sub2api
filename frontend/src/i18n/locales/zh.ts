@@ -1919,6 +1919,7 @@ export default {
       disableUser: '禁用用户',
       enableUser: '启用用户',
       viewApiKeys: '查看 API 密钥',
+      usageRecords: '使用记录',
       groups: '分组',
       apiKeys: 'API密钥',
       userApiKeys: '用户 API 密钥',

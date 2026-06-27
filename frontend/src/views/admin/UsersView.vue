@@ -609,6 +609,15 @@
                 <span class="text-xs">{{ row.status === 'active' ? t('admin.users.disable') : t('admin.users.enable') }}</span>
               </button>
 
+              <!-- Usage Records Button -->
+              <button
+                @click="goToUsage(row)"
+                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-primary-600 dark:hover:bg-dark-700 dark:hover:text-primary-400"
+              >
+                <Icon name="chart" size="sm" />
+                <span class="text-xs">{{ t('admin.users.usageRecords') }}</span>
+              </button>
+
               <!-- More Actions Menu Trigger -->
               <button
                 @click="openActionMenu(row, $event)"
@@ -751,12 +760,14 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { formatDateTime } from '@/utils/format'
 import Icon from '@/components/icons/Icon.vue'
 
 const { t } = useI18n()
+const router = useRouter()
 import { adminAPI } from '@/api/admin'
 import type { AdminUser, AdminGroup, UserAttributeDefinition } from '@/types'
 import type { BatchUserUsageStats } from '@/api/admin/dashboard'
@@ -1681,6 +1692,11 @@ const handleToggleStatus = async (user: AdminUser) => {
 const handleViewApiKeys = (user: AdminUser) => {
   viewingUser.value = user
   showApiKeysModal.value = true
+}
+
+// 跳转到使用记录页，并按该用户预过滤（UsageView 从 route.query.user_id 初始化）
+const goToUsage = (user: AdminUser) => {
+  router.push({ path: '/admin/usage', query: { user_id: String(user.id) } })
 }
 
 const closeApiKeysModal = () => {
