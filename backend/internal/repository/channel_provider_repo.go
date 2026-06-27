@@ -248,12 +248,12 @@ func (r *channelProviderRepository) ListAggregated(ctx context.Context) ([]servi
 	return out, rows.Err()
 }
 
-// FindFirstActiveAPIKeyAccountByBaseURL 取该标准化 baseUrl 下第一个
+// FindAllActiveAPIKeyAccountsByBaseURL 取该标准化 baseUrl 下所有
 // status='active' 且 credentials 含可用 api_key 的账号的上游调用凭据。
 // 不限定 type：只要 credentials 里有 base_url + api_key 即可作为刷新凭据来源
 // （主要是 upstream 上游透传账号，也涵盖其他显式填写 baseUrl+apiKey 的账号）。
-// 未找到返回 (nil, nil)。
-func (r *channelProviderRepository) FindFirstActiveAPIKeyAccountByBaseURL(ctx context.Context, normalizedBaseURL string) (*service.ProviderRefreshSource, error) {
+// NewAPI 类余额刷新需遍历所有账号累加 usage，因此返回全部。未找到返回空切片。
+func (r *channelProviderRepository) FindAllActiveAPIKeyAccountsByBaseURL(ctx context.Context, normalizedBaseURL string) ([]*service.ProviderRefreshSource, error) {
 	rows, err := r.sql.QueryContext(ctx, `
 		SELECT a.credentials->>'api_key' AS api_key,
 		       a.credentials->>'base_url' AS base_url,
@@ -265,44 +265,42 @@ func (r *channelProviderRepository) FindFirstActiveAPIKeyAccountByBaseURL(ctx co
 		  AND LOWER(TRIM(TRAILING '/' FROM TRIM(a.credentials->>'base_url'))) = $1
 		  AND btrim(a.credentials->>'api_key') <> ''
 		ORDER BY a.priority ASC, a.id ASC
-		LIMIT 1
 	`, normalizedBaseURL)
 	if err != nil {
-		return nil, fmt.Errorf("channel_provider find account: %w", err)
+		return nil, fmt.Errorf("channel_provider find accounts: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 
-	if !rows.Next() {
-		return nil, rows.Err()
-	}
-
-	var (
-		apiKey   sql.NullString
-		baseURL  sql.NullString
-		protocol sql.NullString
-		host     sql.NullString
-		port     sql.NullInt64
-		username sql.NullString
-		password sql.NullString
-	)
-	if err := rows.Scan(&apiKey, &baseURL, &protocol, &host, &port, &username, &password); err != nil {
-		return nil, fmt.Errorf("channel_provider scan account: %w", err)
-	}
-
-	source := &service.ProviderRefreshSource{
-		APIKey:  apiKey.String,
-		BaseURL: baseURL.String,
-	}
-	if protocol.Valid {
-		source.Proxy = &service.Proxy{
-			Protocol: protocol.String,
-			Host:     host.String,
-			Port:     int(port.Int64),
-			Username: username.String,
-			Password: password.String,
+	var out []*service.ProviderRefreshSource
+	for rows.Next() {
+		var (
+			apiKey   sql.NullString
+			baseURL  sql.NullString
+			protocol sql.NullString
+			host     sql.NullString
+			port     sql.NullInt64
+			username sql.NullString
+			password sql.NullString
+		)
+		if err := rows.Scan(&apiKey, &baseURL, &protocol, &host, &port, &username, &password); err != nil {
+			return nil, fmt.Errorf("channel_provider scan account: %w", err)
 		}
+		src := &service.ProviderRefreshSource{
+			APIKey:  apiKey.String,
+			BaseURL: baseURL.String,
+		}
+		if protocol.Valid {
+			src.Proxy = &service.Proxy{
+				Protocol: protocol.String,
+				Host:     host.String,
+				Port:     int(port.Int64),
+				Username: username.String,
+				Password: password.String,
+			}
+		}
+		out = append(out, src)
 	}
-	return source, rows.Err()
+	return out, rows.Err()
 }
 
 // scanChannelProvider 从 *sql.Rows 扫描一行到 ChannelProvider。
