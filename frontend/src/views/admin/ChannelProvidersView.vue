@@ -107,7 +107,7 @@
           <template #cell-balance="{ row }">
             <div class="flex flex-col">
               <span
-                :class="row.is_valid ? 'text-gray-900 dark:text-white' : 'text-red-600 dark:text-red-400'"
+                :class="balanceColorClass(row)"
                 class="font-medium"
               >
                 <template v-if="row.balance !== null && row.balance !== undefined">
@@ -356,6 +356,17 @@ async function handleRefreshAll() {
   } finally {
     refreshingAll.value = false
   }
+}
+
+// 余额颜色：≤3 红、3~10 黄、≥10 绿；刷新失败或无余额数据用对应语义色
+function balanceColorClass(row: ChannelProvider): string {
+  if (!row.is_valid) return 'text-red-600 dark:text-red-400'
+  if (row.balance === null || row.balance === undefined) return 'text-gray-400'
+  const bal = Number(row.balance)
+  if (isNaN(bal)) return 'text-gray-400'
+  if (bal <= 3) return 'text-red-600 dark:text-red-400'
+  if (bal < 10) return 'text-yellow-600 dark:text-yellow-400'
+  return 'text-green-600 dark:text-green-400'
 }
 
 function formatDateTime(value: string): string {
