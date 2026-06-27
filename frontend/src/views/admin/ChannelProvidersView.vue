@@ -55,6 +55,19 @@
             <span class="font-medium text-gray-900 dark:text-white break-all">{{ value }}</span>
           </template>
 
+          <template #cell-display_name="{ row }">
+            <input
+              type="text"
+              maxlength="200"
+              class="input w-36 py-1"
+              :value="editingValue(row.base_url, nameDrafts, row.display_name ?? '')"
+              :disabled="savingBaseUrl === row.base_url"
+              @input="setEditingValue(row.base_url, nameDrafts, $event)"
+              @blur="saveProvider(row)"
+              @keydown.enter.prevent="saveProvider(row)"
+            />
+          </template>
+
           <template #cell-recharge_amount="{ row }">
             <div class="flex items-center gap-1">
               <span class="text-gray-400">¥</span>
@@ -63,17 +76,32 @@
                 min="0"
                 step="0.01"
                 class="input w-28 py-1"
-                :value="editingAmount(row.base_url, row.recharge_amount)"
+                :value="editingValue(row.base_url, amountDrafts, String(row.recharge_amount ?? 0))"
                 :disabled="savingBaseUrl === row.base_url"
-                @input="setEditingAmount(row.base_url, $event)"
-                @blur="saveRechargeAmount(row)"
-                @keydown.enter.prevent="saveRechargeAmount(row)"
+                @input="setEditingValue(row.base_url, amountDrafts, $event)"
+                @blur="saveProvider(row)"
+                @keydown.enter.prevent="saveProvider(row)"
               />
               <span
                 v-if="savingBaseUrl === row.base_url"
                 class="ml-1 text-xs text-gray-400"
               >{{ t('common.saving', '...') }}</span>
             </div>
+          </template>
+
+          <template #cell-quota_per_unit="{ row }">
+            <input
+              type="number"
+              min="1"
+              step="1"
+              class="input w-28 py-1"
+              :value="editingValue(row.base_url, quotaDrafts, String(row.quota_per_unit ?? 500000))"
+              :disabled="savingBaseUrl === row.base_url"
+              @input="setEditingValue(row.base_url, quotaDrafts, $event)"
+              @blur="saveProvider(row)"
+              @keydown.enter.prevent="saveProvider(row)"
+            />
+            <div class="mt-0.5 text-xs text-gray-400">{{ t('admin.channelProviders.quotaHint') }}</div>
           </template>
 
           <template #cell-balance="{ row }">
@@ -111,6 +139,13 @@
             </span>
           </template>
 
+          <template #cell-sync_balance="{ row }">
+            <Toggle
+              :modelValue="row.sync_balance"
+              @update:modelValue="(v: boolean) => handleSyncToggle(row, v)"
+            />
+          </template>
+
           <template #cell-actions="{ row }">
             <button
               @click="handleRefreshOne(row.base_url)"
@@ -142,6 +177,7 @@ import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
 import DataTable from '@/components/common/DataTable.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import Toggle from '@/components/common/Toggle.vue'
 import Icon from '@/components/icons/Icon.vue'
 
 const { t } = useI18n()
@@ -154,26 +190,32 @@ const savingBaseUrl = ref<string>('')
 const errorMessage = ref('')
 const successMessage = ref('')
 
-// 行内充值金额编辑：base_url → 草稿值。仅记录用户改动过的行，未改动的回填原始值。
+// 行内编辑草稿：base_url → 草稿值。仅记录用户改动过的字段，未改动的回填原始值。
+// 后端 updateProvider 是全字段更新，因此保存时三字段一起提交（取草稿或原值）。
 const amountDrafts = reactive<Record<string, string>>({})
+const nameDrafts = reactive<Record<string, string>>({})
+const quotaDrafts = reactive<Record<string, string>>({})
 
 const columns = computed<Column[]>(() => [
   { key: 'base_url', label: t('admin.channelProviders.columns.baseUrl'), sortable: true },
+  { key: 'display_name', label: t('admin.channelProviders.columns.displayName'), sortable: false },
   { key: 'recharge_amount', label: t('admin.channelProviders.columns.rechargeAmount'), sortable: false },
+  { key: 'quota_per_unit', label: t('admin.channelProviders.columns.quotaPerUnit'), sortable: false },
   { key: 'balance', label: t('admin.channelProviders.columns.balance'), sortable: false },
   { key: 'balance_checked_at', label: t('admin.channelProviders.columns.balanceCheckedAt'), sortable: false },
   { key: 'account_count', label: t('admin.channelProviders.columns.accountCount'), sortable: false },
+  { key: 'sync_balance', label: t('admin.channelProviders.columns.syncBalance'), sortable: false },
   { key: 'actions', label: t('admin.channelProviders.columns.actions'), sortable: false }
 ])
 
-function editingAmount(baseUrl: string, fallback: number): string {
-  if (baseUrl in amountDrafts) return amountDrafts[baseUrl]
-  return String(fallback ?? 0)
+function editingValue(baseUrl: string, draftMap: Record<string, string>, fallback: string): string {
+  if (baseUrl in draftMap) return draftMap[baseUrl]
+  return fallback
 }
 
-function setEditingAmount(baseUrl: string, ev: Event) {
+function setEditingValue(baseUrl: string, draftMap: Record<string, string>, ev: Event) {
   const target = ev.target as HTMLInputElement
-  amountDrafts[baseUrl] = target.value
+  draftMap[baseUrl] = target.value
 }
 
 async function loadProviders() {
@@ -188,36 +230,74 @@ async function loadProviders() {
   }
 }
 
-async function saveRechargeAmount(row: ChannelProvider) {
-  const draftRaw = amountDrafts[row.base_url]
-  // 没有改动则跳过
-  if (draftRaw === undefined) return
-  const amount = Number(draftRaw)
+// saveProvider 在任一字段失焦时触发：若三字段任一改动，全字段提交。
+async function saveProvider(row: ChannelProvider) {
+  const amountDraft = amountDrafts[row.base_url]
+  const nameDraft = nameDrafts[row.base_url]
+  const quotaDraft = quotaDrafts[row.base_url]
+
+  // 三字段都没改动则跳过
+  if (amountDraft === undefined && nameDraft === undefined && quotaDraft === undefined) return
+
+  const amount = amountDraft !== undefined ? Number(amountDraft) : Number(row.recharge_amount ?? 0)
   if (!Number.isFinite(amount) || amount < 0) {
     errorMessage.value = t('admin.channelProviders.invalidAmount')
     return
   }
-  // 值未变则跳过
-  if (amount === Number(row.recharge_amount ?? 0)) {
+  const quota = quotaDraft !== undefined ? Number(quotaDraft) : Number(row.quota_per_unit ?? 500000)
+  if (!Number.isFinite(quota) || quota <= 0) {
+    errorMessage.value = t('admin.channelProviders.invalidQuota')
+    return
+  }
+  const name = nameDraft !== undefined ? nameDraft : (row.display_name ?? '')
+
+  // 值都没变则跳过
+  const nameChanged = name !== (row.display_name ?? '')
+  const amountChanged = amount !== Number(row.recharge_amount ?? 0)
+  const quotaChanged = quota !== Number(row.quota_per_unit ?? 500000)
+  if (!nameChanged && !amountChanged && !quotaChanged) {
     delete amountDrafts[row.base_url]
+    delete nameDrafts[row.base_url]
+    delete quotaDrafts[row.base_url]
     return
   }
 
   savingBaseUrl.value = row.base_url
   errorMessage.value = ''
   try {
-    await adminAPI.channelProviders.updateRechargeAmount({
+    await adminAPI.channelProviders.updateProvider({
       base_url: row.base_url,
-      recharge_amount: amount
+      recharge_amount: amount,
+      display_name: name,
+      quota_per_unit: quota
     })
     row.recharge_amount = amount
+    row.display_name = name || null
+    row.quota_per_unit = quota
     delete amountDrafts[row.base_url]
+    delete nameDrafts[row.base_url]
+    delete quotaDrafts[row.base_url]
     successMessage.value = t('admin.channelProviders.saveSuccess')
     setTimeout(() => { successMessage.value = '' }, 2500)
   } catch (err) {
     errorMessage.value = extractApiErrorMessage(err)
   } finally {
     savingBaseUrl.value = ''
+  }
+}
+
+// handleSyncToggle 切换"是否参与刷新全部"。乐观更新，失败回滚。
+async function handleSyncToggle(row: ChannelProvider, enabled: boolean) {
+  const prev = row.sync_balance
+  row.sync_balance = enabled
+  errorMessage.value = ''
+  try {
+    await adminAPI.channelProviders.setSyncBalance(row.base_url, enabled)
+    successMessage.value = t('admin.channelProviders.saveSuccess')
+    setTimeout(() => { successMessage.value = '' }, 2500)
+  } catch (err) {
+    row.sync_balance = prev
+    errorMessage.value = extractApiErrorMessage(err)
   }
 }
 
@@ -256,16 +336,18 @@ async function handleRefreshAll() {
   successMessage.value = ''
   try {
     const results: RefreshResult[] = await adminAPI.channelProviders.refreshAllBalances()
-    const ok = results.filter(r => r.success).length
-    const failed = results.length - ok
+    const ok = results.filter(r => r.success && !r.skipped).length
+    const skipped = results.filter(r => r.skipped).length
+    const failed = results.filter(r => !r.success).length
     // 重新加载以拿到最新余额
     await loadProviders()
-    if (failed === 0) {
+    if (failed === 0 && skipped === 0) {
       successMessage.value = t('admin.channelProviders.refreshSuccess')
     } else {
       successMessage.value = t('admin.channelProviders.refreshAllSummary', {
         ok: String(ok),
-        failed: String(failed)
+        failed: String(failed),
+        skipped: String(skipped)
       })
     }
     setTimeout(() => { successMessage.value = '' }, 4000)

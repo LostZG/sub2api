@@ -63,11 +63,18 @@ func (ChannelProvider) Fields() []ent.Field {
 			SchemaType(map[string]string{dialect.Postgres: "decimal(10,2)"}).
 			Default(0),
 
-		// balance: 最近一次刷新得到的余额（可为空，表示从未刷新过）
+		// quota_per_unit: NewAPI 类上游 quota→USD 换算系数（1 USD = N 个 quota 点）。
+		// 默认 500000（NewAPI 标准），不同部署可能不同（如 codexapis 用 5000000）。
+		// 仅对 /api/user/self 查询生效；sub2api 类直接返回 USD，不读此字段。
+		field.Int64("quota_per_unit").
+			Default(500000),
+
+		// balance: 最近一次刷新得到的余额（可为空，表示从未刷新过）。
+		// 精度 20,4：NewAPI 类 quota 值可能很大，换算后余额需大整数部分。
 		field.Float("balance").
 			Optional().
 			Nillable().
-			SchemaType(map[string]string{dialect.Postgres: "decimal(10,4)"}),
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,4)"}),
 
 		// balance_unit: 余额单位，默认 USD
 		field.String("balance_unit").
@@ -82,6 +89,11 @@ func (ChannelProvider) Fields() []ent.Field {
 
 		// is_valid: 最近一次刷新是否成功
 		field.Bool("is_valid").
+			Default(true),
+
+		// sync_balance: 是否参与"刷新全部"的余额同步。关闭后刷新全部时跳过该渠道商；
+		// 单行刷新不受影响（用户主动点单行刷新仍会执行）。
+		field.Bool("sync_balance").
 			Default(true),
 
 		// last_refresh_error: 最近一次刷新失败的原因（可为空）

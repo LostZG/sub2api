@@ -27,9 +27,11 @@ func NewChannelProviderHandler(providerService *service.ChannelProviderService) 
 
 // --- Request / Response types ---
 
-type updateRechargeAmountRequest struct {
+type updateProviderRequest struct {
 	BaseURL        string  `json:"base_url" binding:"required"`
 	RechargeAmount float64 `json:"recharge_amount" binding:"min=0"`
+	DisplayName    string  `json:"display_name"`
+	QuotaPerUnit   int64   `json:"quota_per_unit"`
 }
 
 type refreshProviderRequest struct {
@@ -41,10 +43,12 @@ type channelProviderResponse struct {
 	BaseURL          string  `json:"base_url"`
 	DisplayName      *string `json:"display_name"`
 	RechargeAmount   float64 `json:"recharge_amount"`
+	QuotaPerUnit     int64   `json:"quota_per_unit"`
 	Balance          *float64 `json:"balance"`
 	BalanceUnit      string  `json:"balance_unit"`
 	BalanceCheckedAt string  `json:"balance_checked_at"`
 	IsValid          bool    `json:"is_valid"`
+	SyncBalance      bool    `json:"sync_balance"`
 	LastRefreshError string  `json:"last_refresh_error"`
 	AccountCount     int64   `json:"account_count"`
 	UpdatedAt        string  `json:"updated_at"`
@@ -59,9 +63,11 @@ func providerToResponse(agg *service.ChannelProviderAggregated) *channelProvider
 		BaseURL:        agg.BaseURL,
 		DisplayName:    agg.DisplayName,
 		RechargeAmount: agg.RechargeAmount,
+		QuotaPerUnit:   agg.QuotaPerUnit,
 		Balance:        agg.Balance,
 		BalanceUnit:    agg.BalanceUnit,
 		IsValid:        agg.IsValid,
+		SyncBalance:    agg.SyncBalance,
 		AccountCount:   agg.AccountCount,
 		UpdatedAt:      agg.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}
@@ -83,9 +89,11 @@ func providerEntityToResponse(p *service.ChannelProvider) *channelProviderRespon
 		BaseURL:        p.BaseURL,
 		DisplayName:    p.DisplayName,
 		RechargeAmount: p.RechargeAmount,
+		QuotaPerUnit:   p.QuotaPerUnit,
 		Balance:        p.Balance,
 		BalanceUnit:    p.BalanceUnit,
 		IsValid:        p.IsValid,
+		SyncBalance:    p.SyncBalance,
 		UpdatedAt:      p.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}
 	if p.BalanceCheckedAt != nil {
@@ -115,21 +123,43 @@ func (h *ChannelProviderHandler) List(c *gin.Context) {
 	response.Success(c, out)
 }
 
-// UpdateRechargeAmount 编辑某个渠道商的充值金额
+// UpdateProvider 编辑某个渠道商的可编辑字段（充值金额 / 名称 / quota 系数）
 // PUT /api/v1/admin/channel-providers/recharge
-func (h *ChannelProviderHandler) UpdateRechargeAmount(c *gin.Context) {
-	var req updateRechargeAmountRequest
+func (h *ChannelProviderHandler) UpdateProvider(c *gin.Context) {
+	var req updateProviderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.ErrorFrom(c, infraerrors.BadRequest("VALIDATION_ERROR", err.Error()))
 		return
 	}
 
-	if err := h.providerService.UpdateRechargeAmount(c.Request.Context(), req.BaseURL, req.RechargeAmount); err != nil {
+	if err := h.providerService.UpdateProvider(c.Request.Context(), req.BaseURL, req.RechargeAmount, req.DisplayName, req.QuotaPerUnit); err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
 
-	response.Success(c, gin.H{"message": "recharge amount updated"})
+	response.Success(c, gin.H{"message": "provider updated"})
+}
+
+type setSyncBalanceRequest struct {
+	BaseURL     string `json:"base_url" binding:"required"`
+	SyncBalance bool   `json:"sync_balance"`
+}
+
+// SetSyncBalance 切换是否参与"刷新全部"的余额同步
+// POST /api/v1/admin/channel-providers/sync-toggle
+func (h *ChannelProviderHandler) SetSyncBalance(c *gin.Context) {
+	var req setSyncBalanceRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorFrom(c, infraerrors.BadRequest("VALIDATION_ERROR", err.Error()))
+		return
+	}
+
+	if err := h.providerService.SetSyncBalance(c.Request.Context(), req.BaseURL, req.SyncBalance); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, gin.H{"message": "sync_balance updated"})
 }
 
 // Refresh 刷新单个渠道商余额，返回更新后的渠道商

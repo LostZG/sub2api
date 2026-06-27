@@ -32,8 +32,8 @@ func NewChannelProviderRepository(sqlDB *sql.DB) service.ChannelProviderReposito
 // ListAll 返回所有渠道商，按 base_url 升序。
 func (r *channelProviderRepository) ListAll(ctx context.Context) ([]*service.ChannelProvider, error) {
 	rows, err := r.sql.QueryContext(ctx, `
-		SELECT id, base_url, display_name, recharge_amount, balance, balance_unit,
-		       balance_checked_at, is_valid, last_refresh_error, created_at, updated_at
+		SELECT id, base_url, display_name, recharge_amount, quota_per_unit, balance, balance_unit,
+		       balance_checked_at, is_valid, sync_balance, last_refresh_error, created_at, updated_at
 		FROM channel_providers
 		ORDER BY base_url ASC
 	`)
@@ -56,8 +56,8 @@ func (r *channelProviderRepository) ListAll(ctx context.Context) ([]*service.Cha
 // GetByBaseURL 按标准化 baseURL 查询单个渠道商。不存在返回 (nil, nil)。
 func (r *channelProviderRepository) GetByBaseURL(ctx context.Context, baseURL string) (*service.ChannelProvider, error) {
 	row := r.sql.QueryRowContext(ctx, `
-		SELECT id, base_url, display_name, recharge_amount, balance, balance_unit,
-		       balance_checked_at, is_valid, last_refresh_error, created_at, updated_at
+		SELECT id, base_url, display_name, recharge_amount, quota_per_unit, balance, balance_unit,
+		       balance_checked_at, is_valid, sync_balance, last_refresh_error, created_at, updated_at
 		FROM channel_providers
 		WHERE base_url = $1
 	`, baseURL)
@@ -72,18 +72,39 @@ func (r *channelProviderRepository) GetByBaseURL(ctx context.Context, baseURL st
 	return p, nil
 }
 
-// Upsert 按 base_url 唯一约束插入或更新充值金额。
-// 存在时仅更新 recharge_amount（保留余额等字段），不存在时插入默认记录。
-func (r *channelProviderRepository) Upsert(ctx context.Context, p *service.ChannelProvider) error {
+// UpdateProvider 按 base_url 唯一约束插入或更新可编辑字段（充值金额 / 名称 / quota 系数）。
+// 存在时仅更新这三个字段（保留余额等字段），不存在时插入默认记录。
+// display_name 空串会被存为 NULL（NULLIF）。
+func (r *channelProviderRepository) UpdateProvider(ctx context.Context, baseURL string, rechargeAmount float64, displayName string, quotaPerUnit int64) error {
+	if quotaPerUnit <= 0 {
+		quotaPerUnit = 500000
+	}
 	_, err := r.sql.ExecContext(ctx, `
-		INSERT INTO channel_providers (base_url, recharge_amount, balance_unit, is_valid, created_at, updated_at)
-		VALUES ($1, $2, 'USD', TRUE, NOW(), NOW())
+		INSERT INTO channel_providers (base_url, recharge_amount, display_name, quota_per_unit, balance_unit, is_valid, created_at, updated_at)
+		VALUES ($1, $2, NULLIF($3, ''), $4, 'USD', TRUE, NOW(), NOW())
 		ON CONFLICT (base_url) DO UPDATE
 			SET recharge_amount = EXCLUDED.recharge_amount,
+			    display_name = EXCLUDED.display_name,
+			    quota_per_unit = EXCLUDED.quota_per_unit,
 			    updated_at = NOW()
-	`, p.BaseURL, p.RechargeAmount)
+	`, baseURL, rechargeAmount, displayName, quotaPerUnit)
 	if err != nil {
-		return fmt.Errorf("channel_provider upsert: %w", err)
+		return fmt.Errorf("channel_provider update provider: %w", err)
+	}
+	return nil
+}
+
+// SetSyncBalance 切换 sync_balance 开关。记录不存在时插入一条（默认其他字段）。
+func (r *channelProviderRepository) SetSyncBalance(ctx context.Context, baseURL string, enabled bool) error {
+	_, err := r.sql.ExecContext(ctx, `
+		INSERT INTO channel_providers (base_url, recharge_amount, quota_per_unit, balance_unit, is_valid, sync_balance, created_at, updated_at)
+		VALUES ($1, 0, 500000, 'USD', TRUE, $2, NOW(), NOW())
+		ON CONFLICT (base_url) DO UPDATE
+			SET sync_balance = EXCLUDED.sync_balance,
+			    updated_at = NOW()
+	`, baseURL, enabled)
+	if err != nil {
+		return fmt.Errorf("channel_provider set sync_balance: %w", err)
 	}
 	return nil
 }
@@ -136,8 +157,10 @@ func (r *channelProviderRepository) ListAggregated(ctx context.Context) ([]servi
 		)
 		SELECT n.base_url,
 		       n.account_count,
-		       cp.id, cp.display_name, cp.recharge_amount, cp.balance, cp.balance_unit,
-		       cp.balance_checked_at, cp.is_valid, cp.last_refresh_error,
+		       cp.id, cp.display_name, cp.recharge_amount,
+		       COALESCE(cp.quota_per_unit, 500000) AS quota_per_unit,
+		       cp.balance, cp.balance_unit,
+		       cp.balance_checked_at, cp.is_valid, COALESCE(cp.sync_balance, TRUE) AS sync_balance, cp.last_refresh_error,
 		       COALESCE(cp.created_at, '1970-01-01T00:00:00Z'::timestamptz) AS created_at,
 		       COALESCE(cp.updated_at, '1970-01-01T00:00:00Z'::timestamptz) AS updated_at
 		FROM normalized n
@@ -157,18 +180,20 @@ func (r *channelProviderRepository) ListAggregated(ctx context.Context) ([]servi
 			id            sql.NullInt64
 			displayName   sql.NullString
 			rechargeAmt   sql.NullFloat64
+			quotaPerUnit  int64
 			balance       sql.NullFloat64
 			balanceUnit   sql.NullString
 			balanceChk    sql.NullTime
 			isValid       sql.NullBool
+			syncBalance   sql.NullBool
 			lastErr       sql.NullString
 			createdAt     time.Time
 			updatedAt     time.Time
 		)
 		if err := rows.Scan(
 			&baseURL, &accountCount,
-			&id, &displayName, &rechargeAmt, &balance, &balanceUnit,
-			&balanceChk, &isValid, &lastErr,
+			&id, &displayName, &rechargeAmt, &quotaPerUnit, &balance, &balanceUnit,
+			&balanceChk, &isValid, &syncBalance, &lastErr,
 			&createdAt, &updatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("channel_provider scan aggregated: %w", err)
@@ -195,6 +220,7 @@ func (r *channelProviderRepository) ListAggregated(ctx context.Context) ([]servi
 		if rechargeAmt.Valid {
 			agg.RechargeAmount = rechargeAmt.Float64
 		}
+		agg.QuotaPerUnit = quotaPerUnit
 		if balance.Valid {
 			v := balance.Float64
 			agg.Balance = &v
@@ -208,6 +234,10 @@ func (r *channelProviderRepository) ListAggregated(ctx context.Context) ([]servi
 		}
 		if isValid.Valid {
 			agg.IsValid = isValid.Bool
+		}
+		agg.SyncBalance = true
+		if syncBalance.Valid {
+			agg.SyncBalance = syncBalance.Bool
 		}
 		if lastErr.Valid {
 			s := lastErr.String
@@ -286,8 +316,8 @@ func scanChannelProvider(rows *sql.Rows) (*service.ChannelProvider, error) {
 		lastErr        sql.NullString
 	)
 	if err := rows.Scan(
-		&p.ID, &p.BaseURL, &displayName, &p.RechargeAmount, &balance, &balanceUnit,
-		&balanceChecked, &p.IsValid, &lastErr, &p.CreatedAt, &p.UpdatedAt,
+		&p.ID, &p.BaseURL, &displayName, &p.RechargeAmount, &p.QuotaPerUnit, &balance, &balanceUnit,
+		&balanceChecked, &p.IsValid, &p.SyncBalance, &lastErr, &p.CreatedAt, &p.UpdatedAt,
 	); err != nil {
 		return nil, fmt.Errorf("channel_provider scan: %w", err)
 	}
@@ -325,8 +355,8 @@ func scanChannelProviderRow(row *sql.Row) (*service.ChannelProvider, error) {
 		lastErr        sql.NullString
 	)
 	if err := row.Scan(
-		&p.ID, &p.BaseURL, &displayName, &p.RechargeAmount, &balance, &balanceUnit,
-		&balanceChecked, &p.IsValid, &lastErr, &p.CreatedAt, &p.UpdatedAt,
+		&p.ID, &p.BaseURL, &displayName, &p.RechargeAmount, &p.QuotaPerUnit, &balance, &balanceUnit,
+		&balanceChecked, &p.IsValid, &p.SyncBalance, &lastErr, &p.CreatedAt, &p.UpdatedAt,
 	); err != nil {
 		return nil, err
 	}

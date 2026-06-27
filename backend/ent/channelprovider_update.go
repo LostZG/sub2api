@@ -89,6 +89,27 @@ func (_u *ChannelProviderUpdate) AddRechargeAmount(v float64) *ChannelProviderUp
 	return _u
 }
 
+// SetQuotaPerUnit sets the "quota_per_unit" field.
+func (_u *ChannelProviderUpdate) SetQuotaPerUnit(v int64) *ChannelProviderUpdate {
+	_u.mutation.ResetQuotaPerUnit()
+	_u.mutation.SetQuotaPerUnit(v)
+	return _u
+}
+
+// SetNillableQuotaPerUnit sets the "quota_per_unit" field if the given value is not nil.
+func (_u *ChannelProviderUpdate) SetNillableQuotaPerUnit(v *int64) *ChannelProviderUpdate {
+	if v != nil {
+		_u.SetQuotaPerUnit(*v)
+	}
+	return _u
+}
+
+// AddQuotaPerUnit adds value to the "quota_per_unit" field.
+func (_u *ChannelProviderUpdate) AddQuotaPerUnit(v int64) *ChannelProviderUpdate {
+	_u.mutation.AddQuotaPerUnit(v)
+	return _u
+}
+
 // SetBalance sets the "balance" field.
 func (_u *ChannelProviderUpdate) SetBalance(v float64) *ChannelProviderUpdate {
 	_u.mutation.ResetBalance()
@@ -160,6 +181,20 @@ func (_u *ChannelProviderUpdate) SetIsValid(v bool) *ChannelProviderUpdate {
 func (_u *ChannelProviderUpdate) SetNillableIsValid(v *bool) *ChannelProviderUpdate {
 	if v != nil {
 		_u.SetIsValid(*v)
+	}
+	return _u
+}
+
+// SetSyncBalance sets the "sync_balance" field.
+func (_u *ChannelProviderUpdate) SetSyncBalance(v bool) *ChannelProviderUpdate {
+	_u.mutation.SetSyncBalance(v)
+	return _u
+}
+
+// SetNillableSyncBalance sets the "sync_balance" field if the given value is not nil.
+func (_u *ChannelProviderUpdate) SetNillableSyncBalance(v *bool) *ChannelProviderUpdate {
+	if v != nil {
+		_u.SetSyncBalance(*v)
 	}
 	return _u
 }
@@ -275,6 +310,12 @@ func (_u *ChannelProviderUpdate) sqlSave(ctx context.Context) (_node int, err er
 	if value, ok := _u.mutation.AddedRechargeAmount(); ok {
 		_spec.AddField(channelprovider.FieldRechargeAmount, field.TypeFloat64, value)
 	}
+	if value, ok := _u.mutation.QuotaPerUnit(); ok {
+		_spec.SetField(channelprovider.FieldQuotaPerUnit, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedQuotaPerUnit(); ok {
+		_spec.AddField(channelprovider.FieldQuotaPerUnit, field.TypeInt64, value)
+	}
 	if value, ok := _u.mutation.Balance(); ok {
 		_spec.SetField(channelprovider.FieldBalance, field.TypeFloat64, value)
 	}
@@ -295,6 +336,9 @@ func (_u *ChannelProviderUpdate) sqlSave(ctx context.Context) (_node int, err er
 	}
 	if value, ok := _u.mutation.IsValid(); ok {
 		_spec.SetField(channelprovider.FieldIsValid, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.SyncBalance(); ok {
+		_spec.SetField(channelprovider.FieldSyncBalance, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.LastRefreshError(); ok {
 		_spec.SetField(channelprovider.FieldLastRefreshError, field.TypeString, value)
@@ -383,6 +427,27 @@ func (_u *ChannelProviderUpdateOne) AddRechargeAmount(v float64) *ChannelProvide
 	return _u
 }
 
+// SetQuotaPerUnit sets the "quota_per_unit" field.
+func (_u *ChannelProviderUpdateOne) SetQuotaPerUnit(v int64) *ChannelProviderUpdateOne {
+	_u.mutation.ResetQuotaPerUnit()
+	_u.mutation.SetQuotaPerUnit(v)
+	return _u
+}
+
+// SetNillableQuotaPerUnit sets the "quota_per_unit" field if the given value is not nil.
+func (_u *ChannelProviderUpdateOne) SetNillableQuotaPerUnit(v *int64) *ChannelProviderUpdateOne {
+	if v != nil {
+		_u.SetQuotaPerUnit(*v)
+	}
+	return _u
+}
+
+// AddQuotaPerUnit adds value to the "quota_per_unit" field.
+func (_u *ChannelProviderUpdateOne) AddQuotaPerUnit(v int64) *ChannelProviderUpdateOne {
+	_u.mutation.AddQuotaPerUnit(v)
+	return _u
+}
+
 // SetBalance sets the "balance" field.
 func (_u *ChannelProviderUpdateOne) SetBalance(v float64) *ChannelProviderUpdateOne {
 	_u.mutation.ResetBalance()
@@ -454,6 +519,20 @@ func (_u *ChannelProviderUpdateOne) SetIsValid(v bool) *ChannelProviderUpdateOne
 func (_u *ChannelProviderUpdateOne) SetNillableIsValid(v *bool) *ChannelProviderUpdateOne {
 	if v != nil {
 		_u.SetIsValid(*v)
+	}
+	return _u
+}
+
+// SetSyncBalance sets the "sync_balance" field.
+func (_u *ChannelProviderUpdateOne) SetSyncBalance(v bool) *ChannelProviderUpdateOne {
+	_u.mutation.SetSyncBalance(v)
+	return _u
+}
+
+// SetNillableSyncBalance sets the "sync_balance" field if the given value is not nil.
+func (_u *ChannelProviderUpdateOne) SetNillableSyncBalance(v *bool) *ChannelProviderUpdateOne {
+	if v != nil {
+		_u.SetSyncBalance(*v)
 	}
 	return _u
 }
@@ -599,6 +678,12 @@ func (_u *ChannelProviderUpdateOne) sqlSave(ctx context.Context) (_node *Channel
 	if value, ok := _u.mutation.AddedRechargeAmount(); ok {
 		_spec.AddField(channelprovider.FieldRechargeAmount, field.TypeFloat64, value)
 	}
+	if value, ok := _u.mutation.QuotaPerUnit(); ok {
+		_spec.SetField(channelprovider.FieldQuotaPerUnit, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedQuotaPerUnit(); ok {
+		_spec.AddField(channelprovider.FieldQuotaPerUnit, field.TypeInt64, value)
+	}
 	if value, ok := _u.mutation.Balance(); ok {
 		_spec.SetField(channelprovider.FieldBalance, field.TypeFloat64, value)
 	}
@@ -619,6 +704,9 @@ func (_u *ChannelProviderUpdateOne) sqlSave(ctx context.Context) (_node *Channel
 	}
 	if value, ok := _u.mutation.IsValid(); ok {
 		_spec.SetField(channelprovider.FieldIsValid, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.SyncBalance(); ok {
+		_spec.SetField(channelprovider.FieldSyncBalance, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.LastRefreshError(); ok {
 		_spec.SetField(channelprovider.FieldLastRefreshError, field.TypeString, value)

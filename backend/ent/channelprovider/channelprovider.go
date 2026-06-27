@@ -23,6 +23,8 @@ const (
 	FieldDisplayName = "display_name"
 	// FieldRechargeAmount holds the string denoting the recharge_amount field in the database.
 	FieldRechargeAmount = "recharge_amount"
+	// FieldQuotaPerUnit holds the string denoting the quota_per_unit field in the database.
+	FieldQuotaPerUnit = "quota_per_unit"
 	// FieldBalance holds the string denoting the balance field in the database.
 	FieldBalance = "balance"
 	// FieldBalanceUnit holds the string denoting the balance_unit field in the database.
@@ -31,6 +33,8 @@ const (
 	FieldBalanceCheckedAt = "balance_checked_at"
 	// FieldIsValid holds the string denoting the is_valid field in the database.
 	FieldIsValid = "is_valid"
+	// FieldSyncBalance holds the string denoting the sync_balance field in the database.
+	FieldSyncBalance = "sync_balance"
 	// FieldLastRefreshError holds the string denoting the last_refresh_error field in the database.
 	FieldLastRefreshError = "last_refresh_error"
 	// Table holds the table name of the channelprovider in the database.
@@ -45,10 +49,12 @@ var Columns = []string{
 	FieldBaseURL,
 	FieldDisplayName,
 	FieldRechargeAmount,
+	FieldQuotaPerUnit,
 	FieldBalance,
 	FieldBalanceUnit,
 	FieldBalanceCheckedAt,
 	FieldIsValid,
+	FieldSyncBalance,
 	FieldLastRefreshError,
 }
 
@@ -75,12 +81,16 @@ var (
 	DisplayNameValidator func(string) error
 	// DefaultRechargeAmount holds the default value on creation for the "recharge_amount" field.
 	DefaultRechargeAmount float64
+	// DefaultQuotaPerUnit holds the default value on creation for the "quota_per_unit" field.
+	DefaultQuotaPerUnit int64
 	// DefaultBalanceUnit holds the default value on creation for the "balance_unit" field.
 	DefaultBalanceUnit string
 	// BalanceUnitValidator is a validator for the "balance_unit" field. It is called by the builders before save.
 	BalanceUnitValidator func(string) error
 	// DefaultIsValid holds the default value on creation for the "is_valid" field.
 	DefaultIsValid bool
+	// DefaultSyncBalance holds the default value on creation for the "sync_balance" field.
+	DefaultSyncBalance bool
 )
 
 // OrderOption defines the ordering options for the ChannelProvider queries.
@@ -116,6 +126,11 @@ func ByRechargeAmount(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRechargeAmount, opts...).ToFunc()
 }
 
+// ByQuotaPerUnit orders the results by the quota_per_unit field.
+func ByQuotaPerUnit(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldQuotaPerUnit, opts...).ToFunc()
+}
+
 // ByBalance orders the results by the balance field.
 func ByBalance(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldBalance, opts...).ToFunc()
@@ -134,6 +149,11 @@ func ByBalanceCheckedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByIsValid orders the results by the is_valid field.
 func ByIsValid(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldIsValid, opts...).ToFunc()
+}
+
+// BySyncBalance orders the results by the sync_balance field.
+func BySyncBalance(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSyncBalance, opts...).ToFunc()
 }
 
 // ByLastRefreshError orders the results by the last_refresh_error field.

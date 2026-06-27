@@ -606,10 +606,12 @@ var (
 		{Name: "base_url", Type: field.TypeString, Size: 500},
 		{Name: "display_name", Type: field.TypeString, Nullable: true, Size: 200},
 		{Name: "recharge_amount", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(10,2)"}},
-		{Name: "balance", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(10,4)"}},
+		{Name: "quota_per_unit", Type: field.TypeInt64, Default: 500000},
+		{Name: "balance", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,4)"}},
 		{Name: "balance_unit", Type: field.TypeString, Size: 20, Default: "USD"},
 		{Name: "balance_checked_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "is_valid", Type: field.TypeBool, Default: true},
+		{Name: "sync_balance", Type: field.TypeBool, Default: true},
 		{Name: "last_refresh_error", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
 	}
 	// ChannelProvidersTable holds the schema information for the "channel_providers" table.

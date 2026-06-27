@@ -738,16 +738,24 @@ func init() {
 	channelproviderDescRechargeAmount := channelproviderFields[2].Descriptor()
 	// channelprovider.DefaultRechargeAmount holds the default value on creation for the recharge_amount field.
 	channelprovider.DefaultRechargeAmount = channelproviderDescRechargeAmount.Default.(float64)
+	// channelproviderDescQuotaPerUnit is the schema descriptor for quota_per_unit field.
+	channelproviderDescQuotaPerUnit := channelproviderFields[3].Descriptor()
+	// channelprovider.DefaultQuotaPerUnit holds the default value on creation for the quota_per_unit field.
+	channelprovider.DefaultQuotaPerUnit = channelproviderDescQuotaPerUnit.Default.(int64)
 	// channelproviderDescBalanceUnit is the schema descriptor for balance_unit field.
-	channelproviderDescBalanceUnit := channelproviderFields[4].Descriptor()
+	channelproviderDescBalanceUnit := channelproviderFields[5].Descriptor()
 	// channelprovider.DefaultBalanceUnit holds the default value on creation for the balance_unit field.
 	channelprovider.DefaultBalanceUnit = channelproviderDescBalanceUnit.Default.(string)
 	// channelprovider.BalanceUnitValidator is a validator for the "balance_unit" field. It is called by the builders before save.
 	channelprovider.BalanceUnitValidator = channelproviderDescBalanceUnit.Validators[0].(func(string) error)
 	// channelproviderDescIsValid is the schema descriptor for is_valid field.
-	channelproviderDescIsValid := channelproviderFields[6].Descriptor()
+	channelproviderDescIsValid := channelproviderFields[7].Descriptor()
 	// channelprovider.DefaultIsValid holds the default value on creation for the is_valid field.
 	channelprovider.DefaultIsValid = channelproviderDescIsValid.Default.(bool)
+	// channelproviderDescSyncBalance is the schema descriptor for sync_balance field.
+	channelproviderDescSyncBalance := channelproviderFields[8].Descriptor()
+	// channelprovider.DefaultSyncBalance holds the default value on creation for the sync_balance field.
+	channelprovider.DefaultSyncBalance = channelproviderDescSyncBalance.Default.(bool)
 	errorpassthroughruleMixin := schema.ErrorPassthroughRule{}.Mixin()
 	errorpassthroughruleMixinFields0 := errorpassthroughruleMixin[0].Fields()
 	_ = errorpassthroughruleMixinFields0

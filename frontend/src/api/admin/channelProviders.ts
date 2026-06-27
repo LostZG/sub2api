@@ -10,10 +10,12 @@ export interface ChannelProvider {
   base_url: string
   display_name: string | null
   recharge_amount: number
+  quota_per_unit: number
   balance: number | null
   balance_unit: string
   balance_checked_at: string
   is_valid: boolean
+  sync_balance: boolean
   last_refresh_error: string
   account_count: number
   updated_at: string
@@ -22,12 +24,15 @@ export interface ChannelProvider {
 export interface RefreshResult {
   base_url: string
   success: boolean
+  skipped?: boolean
   message?: string
 }
 
-export interface UpdateRechargeAmountRequest {
+export interface UpdateProviderRequest {
   base_url: string
   recharge_amount: number
+  display_name: string
+  quota_per_unit: number
 }
 
 export interface RefreshProviderRequest {
@@ -43,10 +48,20 @@ export async function list(): Promise<ChannelProvider[]> {
 }
 
 /**
- * 编辑某个渠道商的充值金额
+ * 更新某个渠道商的可编辑字段（充值金额 / 名称 / quota 系数）
  */
-export async function updateRechargeAmount(req: UpdateRechargeAmountRequest): Promise<void> {
+export async function updateProvider(req: UpdateProviderRequest): Promise<void> {
   await apiClient.put('/admin/channel-providers/recharge', req)
+}
+
+/**
+ * 切换是否参与"刷新全部"的余额同步
+ */
+export async function setSyncBalance(baseURL: string, enabled: boolean): Promise<void> {
+  await apiClient.post('/admin/channel-providers/sync-toggle', {
+    base_url: baseURL,
+    sync_balance: enabled
+  })
 }
 
 /**
@@ -68,5 +83,5 @@ export async function refreshAllBalances(): Promise<RefreshResult[]> {
   return data ?? []
 }
 
-const channelProvidersAPI = { list, updateRechargeAmount, refreshBalance, refreshAllBalances }
+const channelProvidersAPI = { list, updateProvider, setSyncBalance, refreshBalance, refreshAllBalances }
 export default channelProvidersAPI

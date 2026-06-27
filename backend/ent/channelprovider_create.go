@@ -84,6 +84,20 @@ func (_c *ChannelProviderCreate) SetNillableRechargeAmount(v *float64) *ChannelP
 	return _c
 }
 
+// SetQuotaPerUnit sets the "quota_per_unit" field.
+func (_c *ChannelProviderCreate) SetQuotaPerUnit(v int64) *ChannelProviderCreate {
+	_c.mutation.SetQuotaPerUnit(v)
+	return _c
+}
+
+// SetNillableQuotaPerUnit sets the "quota_per_unit" field if the given value is not nil.
+func (_c *ChannelProviderCreate) SetNillableQuotaPerUnit(v *int64) *ChannelProviderCreate {
+	if v != nil {
+		_c.SetQuotaPerUnit(*v)
+	}
+	return _c
+}
+
 // SetBalance sets the "balance" field.
 func (_c *ChannelProviderCreate) SetBalance(v float64) *ChannelProviderCreate {
 	_c.mutation.SetBalance(v)
@@ -136,6 +150,20 @@ func (_c *ChannelProviderCreate) SetIsValid(v bool) *ChannelProviderCreate {
 func (_c *ChannelProviderCreate) SetNillableIsValid(v *bool) *ChannelProviderCreate {
 	if v != nil {
 		_c.SetIsValid(*v)
+	}
+	return _c
+}
+
+// SetSyncBalance sets the "sync_balance" field.
+func (_c *ChannelProviderCreate) SetSyncBalance(v bool) *ChannelProviderCreate {
+	_c.mutation.SetSyncBalance(v)
+	return _c
+}
+
+// SetNillableSyncBalance sets the "sync_balance" field if the given value is not nil.
+func (_c *ChannelProviderCreate) SetNillableSyncBalance(v *bool) *ChannelProviderCreate {
+	if v != nil {
+		_c.SetSyncBalance(*v)
 	}
 	return _c
 }
@@ -201,6 +229,10 @@ func (_c *ChannelProviderCreate) defaults() {
 		v := channelprovider.DefaultRechargeAmount
 		_c.mutation.SetRechargeAmount(v)
 	}
+	if _, ok := _c.mutation.QuotaPerUnit(); !ok {
+		v := channelprovider.DefaultQuotaPerUnit
+		_c.mutation.SetQuotaPerUnit(v)
+	}
 	if _, ok := _c.mutation.BalanceUnit(); !ok {
 		v := channelprovider.DefaultBalanceUnit
 		_c.mutation.SetBalanceUnit(v)
@@ -208,6 +240,10 @@ func (_c *ChannelProviderCreate) defaults() {
 	if _, ok := _c.mutation.IsValid(); !ok {
 		v := channelprovider.DefaultIsValid
 		_c.mutation.SetIsValid(v)
+	}
+	if _, ok := _c.mutation.SyncBalance(); !ok {
+		v := channelprovider.DefaultSyncBalance
+		_c.mutation.SetSyncBalance(v)
 	}
 }
 
@@ -235,6 +271,9 @@ func (_c *ChannelProviderCreate) check() error {
 	if _, ok := _c.mutation.RechargeAmount(); !ok {
 		return &ValidationError{Name: "recharge_amount", err: errors.New(`ent: missing required field "ChannelProvider.recharge_amount"`)}
 	}
+	if _, ok := _c.mutation.QuotaPerUnit(); !ok {
+		return &ValidationError{Name: "quota_per_unit", err: errors.New(`ent: missing required field "ChannelProvider.quota_per_unit"`)}
+	}
 	if _, ok := _c.mutation.BalanceUnit(); !ok {
 		return &ValidationError{Name: "balance_unit", err: errors.New(`ent: missing required field "ChannelProvider.balance_unit"`)}
 	}
@@ -245,6 +284,9 @@ func (_c *ChannelProviderCreate) check() error {
 	}
 	if _, ok := _c.mutation.IsValid(); !ok {
 		return &ValidationError{Name: "is_valid", err: errors.New(`ent: missing required field "ChannelProvider.is_valid"`)}
+	}
+	if _, ok := _c.mutation.SyncBalance(); !ok {
+		return &ValidationError{Name: "sync_balance", err: errors.New(`ent: missing required field "ChannelProvider.sync_balance"`)}
 	}
 	return nil
 }
@@ -293,6 +335,10 @@ func (_c *ChannelProviderCreate) createSpec() (*ChannelProvider, *sqlgraph.Creat
 		_spec.SetField(channelprovider.FieldRechargeAmount, field.TypeFloat64, value)
 		_node.RechargeAmount = value
 	}
+	if value, ok := _c.mutation.QuotaPerUnit(); ok {
+		_spec.SetField(channelprovider.FieldQuotaPerUnit, field.TypeInt64, value)
+		_node.QuotaPerUnit = value
+	}
 	if value, ok := _c.mutation.Balance(); ok {
 		_spec.SetField(channelprovider.FieldBalance, field.TypeFloat64, value)
 		_node.Balance = &value
@@ -308,6 +354,10 @@ func (_c *ChannelProviderCreate) createSpec() (*ChannelProvider, *sqlgraph.Creat
 	if value, ok := _c.mutation.IsValid(); ok {
 		_spec.SetField(channelprovider.FieldIsValid, field.TypeBool, value)
 		_node.IsValid = value
+	}
+	if value, ok := _c.mutation.SyncBalance(); ok {
+		_spec.SetField(channelprovider.FieldSyncBalance, field.TypeBool, value)
+		_node.SyncBalance = value
 	}
 	if value, ok := _c.mutation.LastRefreshError(); ok {
 		_spec.SetField(channelprovider.FieldLastRefreshError, field.TypeString, value)
@@ -425,6 +475,24 @@ func (u *ChannelProviderUpsert) AddRechargeAmount(v float64) *ChannelProviderUps
 	return u
 }
 
+// SetQuotaPerUnit sets the "quota_per_unit" field.
+func (u *ChannelProviderUpsert) SetQuotaPerUnit(v int64) *ChannelProviderUpsert {
+	u.Set(channelprovider.FieldQuotaPerUnit, v)
+	return u
+}
+
+// UpdateQuotaPerUnit sets the "quota_per_unit" field to the value that was provided on create.
+func (u *ChannelProviderUpsert) UpdateQuotaPerUnit() *ChannelProviderUpsert {
+	u.SetExcluded(channelprovider.FieldQuotaPerUnit)
+	return u
+}
+
+// AddQuotaPerUnit adds v to the "quota_per_unit" field.
+func (u *ChannelProviderUpsert) AddQuotaPerUnit(v int64) *ChannelProviderUpsert {
+	u.Add(channelprovider.FieldQuotaPerUnit, v)
+	return u
+}
+
 // SetBalance sets the "balance" field.
 func (u *ChannelProviderUpsert) SetBalance(v float64) *ChannelProviderUpsert {
 	u.Set(channelprovider.FieldBalance, v)
@@ -488,6 +556,18 @@ func (u *ChannelProviderUpsert) SetIsValid(v bool) *ChannelProviderUpsert {
 // UpdateIsValid sets the "is_valid" field to the value that was provided on create.
 func (u *ChannelProviderUpsert) UpdateIsValid() *ChannelProviderUpsert {
 	u.SetExcluded(channelprovider.FieldIsValid)
+	return u
+}
+
+// SetSyncBalance sets the "sync_balance" field.
+func (u *ChannelProviderUpsert) SetSyncBalance(v bool) *ChannelProviderUpsert {
+	u.Set(channelprovider.FieldSyncBalance, v)
+	return u
+}
+
+// UpdateSyncBalance sets the "sync_balance" field to the value that was provided on create.
+func (u *ChannelProviderUpsert) UpdateSyncBalance() *ChannelProviderUpsert {
+	u.SetExcluded(channelprovider.FieldSyncBalance)
 	return u
 }
 
@@ -624,6 +704,27 @@ func (u *ChannelProviderUpsertOne) UpdateRechargeAmount() *ChannelProviderUpsert
 	})
 }
 
+// SetQuotaPerUnit sets the "quota_per_unit" field.
+func (u *ChannelProviderUpsertOne) SetQuotaPerUnit(v int64) *ChannelProviderUpsertOne {
+	return u.Update(func(s *ChannelProviderUpsert) {
+		s.SetQuotaPerUnit(v)
+	})
+}
+
+// AddQuotaPerUnit adds v to the "quota_per_unit" field.
+func (u *ChannelProviderUpsertOne) AddQuotaPerUnit(v int64) *ChannelProviderUpsertOne {
+	return u.Update(func(s *ChannelProviderUpsert) {
+		s.AddQuotaPerUnit(v)
+	})
+}
+
+// UpdateQuotaPerUnit sets the "quota_per_unit" field to the value that was provided on create.
+func (u *ChannelProviderUpsertOne) UpdateQuotaPerUnit() *ChannelProviderUpsertOne {
+	return u.Update(func(s *ChannelProviderUpsert) {
+		s.UpdateQuotaPerUnit()
+	})
+}
+
 // SetBalance sets the "balance" field.
 func (u *ChannelProviderUpsertOne) SetBalance(v float64) *ChannelProviderUpsertOne {
 	return u.Update(func(s *ChannelProviderUpsert) {
@@ -698,6 +799,20 @@ func (u *ChannelProviderUpsertOne) SetIsValid(v bool) *ChannelProviderUpsertOne 
 func (u *ChannelProviderUpsertOne) UpdateIsValid() *ChannelProviderUpsertOne {
 	return u.Update(func(s *ChannelProviderUpsert) {
 		s.UpdateIsValid()
+	})
+}
+
+// SetSyncBalance sets the "sync_balance" field.
+func (u *ChannelProviderUpsertOne) SetSyncBalance(v bool) *ChannelProviderUpsertOne {
+	return u.Update(func(s *ChannelProviderUpsert) {
+		s.SetSyncBalance(v)
+	})
+}
+
+// UpdateSyncBalance sets the "sync_balance" field to the value that was provided on create.
+func (u *ChannelProviderUpsertOne) UpdateSyncBalance() *ChannelProviderUpsertOne {
+	return u.Update(func(s *ChannelProviderUpsert) {
+		s.UpdateSyncBalance()
 	})
 }
 
@@ -1003,6 +1118,27 @@ func (u *ChannelProviderUpsertBulk) UpdateRechargeAmount() *ChannelProviderUpser
 	})
 }
 
+// SetQuotaPerUnit sets the "quota_per_unit" field.
+func (u *ChannelProviderUpsertBulk) SetQuotaPerUnit(v int64) *ChannelProviderUpsertBulk {
+	return u.Update(func(s *ChannelProviderUpsert) {
+		s.SetQuotaPerUnit(v)
+	})
+}
+
+// AddQuotaPerUnit adds v to the "quota_per_unit" field.
+func (u *ChannelProviderUpsertBulk) AddQuotaPerUnit(v int64) *ChannelProviderUpsertBulk {
+	return u.Update(func(s *ChannelProviderUpsert) {
+		s.AddQuotaPerUnit(v)
+	})
+}
+
+// UpdateQuotaPerUnit sets the "quota_per_unit" field to the value that was provided on create.
+func (u *ChannelProviderUpsertBulk) UpdateQuotaPerUnit() *ChannelProviderUpsertBulk {
+	return u.Update(func(s *ChannelProviderUpsert) {
+		s.UpdateQuotaPerUnit()
+	})
+}
+
 // SetBalance sets the "balance" field.
 func (u *ChannelProviderUpsertBulk) SetBalance(v float64) *ChannelProviderUpsertBulk {
 	return u.Update(func(s *ChannelProviderUpsert) {
@@ -1077,6 +1213,20 @@ func (u *ChannelProviderUpsertBulk) SetIsValid(v bool) *ChannelProviderUpsertBul
 func (u *ChannelProviderUpsertBulk) UpdateIsValid() *ChannelProviderUpsertBulk {
 	return u.Update(func(s *ChannelProviderUpsert) {
 		s.UpdateIsValid()
+	})
+}
+
+// SetSyncBalance sets the "sync_balance" field.
+func (u *ChannelProviderUpsertBulk) SetSyncBalance(v bool) *ChannelProviderUpsertBulk {
+	return u.Update(func(s *ChannelProviderUpsert) {
+		s.SetSyncBalance(v)
+	})
+}
+
+// UpdateSyncBalance sets the "sync_balance" field to the value that was provided on create.
+func (u *ChannelProviderUpsertBulk) UpdateSyncBalance() *ChannelProviderUpsertBulk {
+	return u.Update(func(s *ChannelProviderUpsert) {
+		s.UpdateSyncBalance()
 	})
 }
 

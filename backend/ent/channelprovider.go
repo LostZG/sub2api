@@ -27,6 +27,8 @@ type ChannelProvider struct {
 	DisplayName *string `json:"display_name,omitempty"`
 	// RechargeAmount holds the value of the "recharge_amount" field.
 	RechargeAmount float64 `json:"recharge_amount,omitempty"`
+	// QuotaPerUnit holds the value of the "quota_per_unit" field.
+	QuotaPerUnit int64 `json:"quota_per_unit,omitempty"`
 	// Balance holds the value of the "balance" field.
 	Balance *float64 `json:"balance,omitempty"`
 	// BalanceUnit holds the value of the "balance_unit" field.
@@ -35,6 +37,8 @@ type ChannelProvider struct {
 	BalanceCheckedAt *time.Time `json:"balance_checked_at,omitempty"`
 	// IsValid holds the value of the "is_valid" field.
 	IsValid bool `json:"is_valid,omitempty"`
+	// SyncBalance holds the value of the "sync_balance" field.
+	SyncBalance bool `json:"sync_balance,omitempty"`
 	// LastRefreshError holds the value of the "last_refresh_error" field.
 	LastRefreshError *string `json:"last_refresh_error,omitempty"`
 	selectValues     sql.SelectValues
@@ -45,11 +49,11 @@ func (*ChannelProvider) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case channelprovider.FieldIsValid:
+		case channelprovider.FieldIsValid, channelprovider.FieldSyncBalance:
 			values[i] = new(sql.NullBool)
 		case channelprovider.FieldRechargeAmount, channelprovider.FieldBalance:
 			values[i] = new(sql.NullFloat64)
-		case channelprovider.FieldID:
+		case channelprovider.FieldID, channelprovider.FieldQuotaPerUnit:
 			values[i] = new(sql.NullInt64)
 		case channelprovider.FieldBaseURL, channelprovider.FieldDisplayName, channelprovider.FieldBalanceUnit, channelprovider.FieldLastRefreshError:
 			values[i] = new(sql.NullString)
@@ -107,6 +111,12 @@ func (_m *ChannelProvider) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.RechargeAmount = value.Float64
 			}
+		case channelprovider.FieldQuotaPerUnit:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field quota_per_unit", values[i])
+			} else if value.Valid {
+				_m.QuotaPerUnit = value.Int64
+			}
 		case channelprovider.FieldBalance:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
 				return fmt.Errorf("unexpected type %T for field balance", values[i])
@@ -132,6 +142,12 @@ func (_m *ChannelProvider) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field is_valid", values[i])
 			} else if value.Valid {
 				_m.IsValid = value.Bool
+			}
+		case channelprovider.FieldSyncBalance:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field sync_balance", values[i])
+			} else if value.Valid {
+				_m.SyncBalance = value.Bool
 			}
 		case channelprovider.FieldLastRefreshError:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -193,6 +209,9 @@ func (_m *ChannelProvider) String() string {
 	builder.WriteString("recharge_amount=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RechargeAmount))
 	builder.WriteString(", ")
+	builder.WriteString("quota_per_unit=")
+	builder.WriteString(fmt.Sprintf("%v", _m.QuotaPerUnit))
+	builder.WriteString(", ")
 	if v := _m.Balance; v != nil {
 		builder.WriteString("balance=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
@@ -208,6 +227,9 @@ func (_m *ChannelProvider) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("is_valid=")
 	builder.WriteString(fmt.Sprintf("%v", _m.IsValid))
+	builder.WriteString(", ")
+	builder.WriteString("sync_balance=")
+	builder.WriteString(fmt.Sprintf("%v", _m.SyncBalance))
 	builder.WriteString(", ")
 	if v := _m.LastRefreshError; v != nil {
 		builder.WriteString("last_refresh_error=")

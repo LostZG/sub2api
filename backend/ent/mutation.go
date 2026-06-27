@@ -13737,11 +13737,14 @@ type ChannelProviderMutation struct {
 	display_name       *string
 	recharge_amount    *float64
 	addrecharge_amount *float64
+	quota_per_unit     *int64
+	addquota_per_unit  *int64
 	balance            *float64
 	addbalance         *float64
 	balance_unit       *string
 	balance_checked_at *time.Time
 	is_valid           *bool
+	sync_balance       *bool
 	last_refresh_error *string
 	clearedFields      map[string]struct{}
 	done               bool
@@ -14060,6 +14063,62 @@ func (m *ChannelProviderMutation) ResetRechargeAmount() {
 	m.addrecharge_amount = nil
 }
 
+// SetQuotaPerUnit sets the "quota_per_unit" field.
+func (m *ChannelProviderMutation) SetQuotaPerUnit(i int64) {
+	m.quota_per_unit = &i
+	m.addquota_per_unit = nil
+}
+
+// QuotaPerUnit returns the value of the "quota_per_unit" field in the mutation.
+func (m *ChannelProviderMutation) QuotaPerUnit() (r int64, exists bool) {
+	v := m.quota_per_unit
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldQuotaPerUnit returns the old "quota_per_unit" field's value of the ChannelProvider entity.
+// If the ChannelProvider object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelProviderMutation) OldQuotaPerUnit(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldQuotaPerUnit is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldQuotaPerUnit requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldQuotaPerUnit: %w", err)
+	}
+	return oldValue.QuotaPerUnit, nil
+}
+
+// AddQuotaPerUnit adds i to the "quota_per_unit" field.
+func (m *ChannelProviderMutation) AddQuotaPerUnit(i int64) {
+	if m.addquota_per_unit != nil {
+		*m.addquota_per_unit += i
+	} else {
+		m.addquota_per_unit = &i
+	}
+}
+
+// AddedQuotaPerUnit returns the value that was added to the "quota_per_unit" field in this mutation.
+func (m *ChannelProviderMutation) AddedQuotaPerUnit() (r int64, exists bool) {
+	v := m.addquota_per_unit
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetQuotaPerUnit resets all changes to the "quota_per_unit" field.
+func (m *ChannelProviderMutation) ResetQuotaPerUnit() {
+	m.quota_per_unit = nil
+	m.addquota_per_unit = nil
+}
+
 // SetBalance sets the "balance" field.
 func (m *ChannelProviderMutation) SetBalance(f float64) {
 	m.balance = &f
@@ -14251,6 +14310,42 @@ func (m *ChannelProviderMutation) ResetIsValid() {
 	m.is_valid = nil
 }
 
+// SetSyncBalance sets the "sync_balance" field.
+func (m *ChannelProviderMutation) SetSyncBalance(b bool) {
+	m.sync_balance = &b
+}
+
+// SyncBalance returns the value of the "sync_balance" field in the mutation.
+func (m *ChannelProviderMutation) SyncBalance() (r bool, exists bool) {
+	v := m.sync_balance
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSyncBalance returns the old "sync_balance" field's value of the ChannelProvider entity.
+// If the ChannelProvider object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelProviderMutation) OldSyncBalance(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSyncBalance is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSyncBalance requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSyncBalance: %w", err)
+	}
+	return oldValue.SyncBalance, nil
+}
+
+// ResetSyncBalance resets all changes to the "sync_balance" field.
+func (m *ChannelProviderMutation) ResetSyncBalance() {
+	m.sync_balance = nil
+}
+
 // SetLastRefreshError sets the "last_refresh_error" field.
 func (m *ChannelProviderMutation) SetLastRefreshError(s string) {
 	m.last_refresh_error = &s
@@ -14334,7 +14429,7 @@ func (m *ChannelProviderMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ChannelProviderMutation) Fields() []string {
-	fields := make([]string, 0, 10)
+	fields := make([]string, 0, 12)
 	if m.created_at != nil {
 		fields = append(fields, channelprovider.FieldCreatedAt)
 	}
@@ -14350,6 +14445,9 @@ func (m *ChannelProviderMutation) Fields() []string {
 	if m.recharge_amount != nil {
 		fields = append(fields, channelprovider.FieldRechargeAmount)
 	}
+	if m.quota_per_unit != nil {
+		fields = append(fields, channelprovider.FieldQuotaPerUnit)
+	}
 	if m.balance != nil {
 		fields = append(fields, channelprovider.FieldBalance)
 	}
@@ -14361,6 +14459,9 @@ func (m *ChannelProviderMutation) Fields() []string {
 	}
 	if m.is_valid != nil {
 		fields = append(fields, channelprovider.FieldIsValid)
+	}
+	if m.sync_balance != nil {
+		fields = append(fields, channelprovider.FieldSyncBalance)
 	}
 	if m.last_refresh_error != nil {
 		fields = append(fields, channelprovider.FieldLastRefreshError)
@@ -14383,6 +14484,8 @@ func (m *ChannelProviderMutation) Field(name string) (ent.Value, bool) {
 		return m.DisplayName()
 	case channelprovider.FieldRechargeAmount:
 		return m.RechargeAmount()
+	case channelprovider.FieldQuotaPerUnit:
+		return m.QuotaPerUnit()
 	case channelprovider.FieldBalance:
 		return m.Balance()
 	case channelprovider.FieldBalanceUnit:
@@ -14391,6 +14494,8 @@ func (m *ChannelProviderMutation) Field(name string) (ent.Value, bool) {
 		return m.BalanceCheckedAt()
 	case channelprovider.FieldIsValid:
 		return m.IsValid()
+	case channelprovider.FieldSyncBalance:
+		return m.SyncBalance()
 	case channelprovider.FieldLastRefreshError:
 		return m.LastRefreshError()
 	}
@@ -14412,6 +14517,8 @@ func (m *ChannelProviderMutation) OldField(ctx context.Context, name string) (en
 		return m.OldDisplayName(ctx)
 	case channelprovider.FieldRechargeAmount:
 		return m.OldRechargeAmount(ctx)
+	case channelprovider.FieldQuotaPerUnit:
+		return m.OldQuotaPerUnit(ctx)
 	case channelprovider.FieldBalance:
 		return m.OldBalance(ctx)
 	case channelprovider.FieldBalanceUnit:
@@ -14420,6 +14527,8 @@ func (m *ChannelProviderMutation) OldField(ctx context.Context, name string) (en
 		return m.OldBalanceCheckedAt(ctx)
 	case channelprovider.FieldIsValid:
 		return m.OldIsValid(ctx)
+	case channelprovider.FieldSyncBalance:
+		return m.OldSyncBalance(ctx)
 	case channelprovider.FieldLastRefreshError:
 		return m.OldLastRefreshError(ctx)
 	}
@@ -14466,6 +14575,13 @@ func (m *ChannelProviderMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetRechargeAmount(v)
 		return nil
+	case channelprovider.FieldQuotaPerUnit:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetQuotaPerUnit(v)
+		return nil
 	case channelprovider.FieldBalance:
 		v, ok := value.(float64)
 		if !ok {
@@ -14494,6 +14610,13 @@ func (m *ChannelProviderMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetIsValid(v)
 		return nil
+	case channelprovider.FieldSyncBalance:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSyncBalance(v)
+		return nil
 	case channelprovider.FieldLastRefreshError:
 		v, ok := value.(string)
 		if !ok {
@@ -14512,6 +14635,9 @@ func (m *ChannelProviderMutation) AddedFields() []string {
 	if m.addrecharge_amount != nil {
 		fields = append(fields, channelprovider.FieldRechargeAmount)
 	}
+	if m.addquota_per_unit != nil {
+		fields = append(fields, channelprovider.FieldQuotaPerUnit)
+	}
 	if m.addbalance != nil {
 		fields = append(fields, channelprovider.FieldBalance)
 	}
@@ -14525,6 +14651,8 @@ func (m *ChannelProviderMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case channelprovider.FieldRechargeAmount:
 		return m.AddedRechargeAmount()
+	case channelprovider.FieldQuotaPerUnit:
+		return m.AddedQuotaPerUnit()
 	case channelprovider.FieldBalance:
 		return m.AddedBalance()
 	}
@@ -14542,6 +14670,13 @@ func (m *ChannelProviderMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddRechargeAmount(v)
+		return nil
+	case channelprovider.FieldQuotaPerUnit:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddQuotaPerUnit(v)
 		return nil
 	case channelprovider.FieldBalance:
 		v, ok := value.(float64)
@@ -14619,6 +14754,9 @@ func (m *ChannelProviderMutation) ResetField(name string) error {
 	case channelprovider.FieldRechargeAmount:
 		m.ResetRechargeAmount()
 		return nil
+	case channelprovider.FieldQuotaPerUnit:
+		m.ResetQuotaPerUnit()
+		return nil
 	case channelprovider.FieldBalance:
 		m.ResetBalance()
 		return nil
@@ -14630,6 +14768,9 @@ func (m *ChannelProviderMutation) ResetField(name string) error {
 		return nil
 	case channelprovider.FieldIsValid:
 		m.ResetIsValid()
+		return nil
+	case channelprovider.FieldSyncBalance:
+		m.ResetSyncBalance()
 		return nil
 	case channelprovider.FieldLastRefreshError:
 		m.ResetLastRefreshError()

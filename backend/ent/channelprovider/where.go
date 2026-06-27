@@ -79,6 +79,11 @@ func RechargeAmount(v float64) predicate.ChannelProvider {
 	return predicate.ChannelProvider(sql.FieldEQ(FieldRechargeAmount, v))
 }
 
+// QuotaPerUnit applies equality check predicate on the "quota_per_unit" field. It's identical to QuotaPerUnitEQ.
+func QuotaPerUnit(v int64) predicate.ChannelProvider {
+	return predicate.ChannelProvider(sql.FieldEQ(FieldQuotaPerUnit, v))
+}
+
 // Balance applies equality check predicate on the "balance" field. It's identical to BalanceEQ.
 func Balance(v float64) predicate.ChannelProvider {
 	return predicate.ChannelProvider(sql.FieldEQ(FieldBalance, v))
@@ -97,6 +102,11 @@ func BalanceCheckedAt(v time.Time) predicate.ChannelProvider {
 // IsValid applies equality check predicate on the "is_valid" field. It's identical to IsValidEQ.
 func IsValid(v bool) predicate.ChannelProvider {
 	return predicate.ChannelProvider(sql.FieldEQ(FieldIsValid, v))
+}
+
+// SyncBalance applies equality check predicate on the "sync_balance" field. It's identical to SyncBalanceEQ.
+func SyncBalance(v bool) predicate.ChannelProvider {
+	return predicate.ChannelProvider(sql.FieldEQ(FieldSyncBalance, v))
 }
 
 // LastRefreshError applies equality check predicate on the "last_refresh_error" field. It's identical to LastRefreshErrorEQ.
@@ -364,6 +374,46 @@ func RechargeAmountLTE(v float64) predicate.ChannelProvider {
 	return predicate.ChannelProvider(sql.FieldLTE(FieldRechargeAmount, v))
 }
 
+// QuotaPerUnitEQ applies the EQ predicate on the "quota_per_unit" field.
+func QuotaPerUnitEQ(v int64) predicate.ChannelProvider {
+	return predicate.ChannelProvider(sql.FieldEQ(FieldQuotaPerUnit, v))
+}
+
+// QuotaPerUnitNEQ applies the NEQ predicate on the "quota_per_unit" field.
+func QuotaPerUnitNEQ(v int64) predicate.ChannelProvider {
+	return predicate.ChannelProvider(sql.FieldNEQ(FieldQuotaPerUnit, v))
+}
+
+// QuotaPerUnitIn applies the In predicate on the "quota_per_unit" field.
+func QuotaPerUnitIn(vs ...int64) predicate.ChannelProvider {
+	return predicate.ChannelProvider(sql.FieldIn(FieldQuotaPerUnit, vs...))
+}
+
+// QuotaPerUnitNotIn applies the NotIn predicate on the "quota_per_unit" field.
+func QuotaPerUnitNotIn(vs ...int64) predicate.ChannelProvider {
+	return predicate.ChannelProvider(sql.FieldNotIn(FieldQuotaPerUnit, vs...))
+}
+
+// QuotaPerUnitGT applies the GT predicate on the "quota_per_unit" field.
+func QuotaPerUnitGT(v int64) predicate.ChannelProvider {
+	return predicate.ChannelProvider(sql.FieldGT(FieldQuotaPerUnit, v))
+}
+
+// QuotaPerUnitGTE applies the GTE predicate on the "quota_per_unit" field.
+func QuotaPerUnitGTE(v int64) predicate.ChannelProvider {
+	return predicate.ChannelProvider(sql.FieldGTE(FieldQuotaPerUnit, v))
+}
+
+// QuotaPerUnitLT applies the LT predicate on the "quota_per_unit" field.
+func QuotaPerUnitLT(v int64) predicate.ChannelProvider {
+	return predicate.ChannelProvider(sql.FieldLT(FieldQuotaPerUnit, v))
+}
+
+// QuotaPerUnitLTE applies the LTE predicate on the "quota_per_unit" field.
+func QuotaPerUnitLTE(v int64) predicate.ChannelProvider {
+	return predicate.ChannelProvider(sql.FieldLTE(FieldQuotaPerUnit, v))
+}
+
 // BalanceEQ applies the EQ predicate on the "balance" field.
 func BalanceEQ(v float64) predicate.ChannelProvider {
 	return predicate.ChannelProvider(sql.FieldEQ(FieldBalance, v))
@@ -537,6 +587,16 @@ func IsValidEQ(v bool) predicate.ChannelProvider {
 // IsValidNEQ applies the NEQ predicate on the "is_valid" field.
 func IsValidNEQ(v bool) predicate.ChannelProvider {
 	return predicate.ChannelProvider(sql.FieldNEQ(FieldIsValid, v))
+}
+
+// SyncBalanceEQ applies the EQ predicate on the "sync_balance" field.
+func SyncBalanceEQ(v bool) predicate.ChannelProvider {
+	return predicate.ChannelProvider(sql.FieldEQ(FieldSyncBalance, v))
+}
+
+// SyncBalanceNEQ applies the NEQ predicate on the "sync_balance" field.
+func SyncBalanceNEQ(v bool) predicate.ChannelProvider {
+	return predicate.ChannelProvider(sql.FieldNEQ(FieldSyncBalance, v))
 }
 
 // LastRefreshErrorEQ applies the EQ predicate on the "last_refresh_error" field.

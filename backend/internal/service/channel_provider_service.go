@@ -26,10 +26,12 @@ type ChannelProvider struct {
 	BaseURL          string
 	DisplayName      *string
 	RechargeAmount   float64
+	QuotaPerUnit     int64 // NewAPI 类 quota→USD 系数（默认 500000），仅 /api/user/self 查询用
 	Balance          *float64
 	BalanceUnit      string
 	BalanceCheckedAt *time.Time
 	IsValid          bool
+	SyncBalance      bool // 是否参与"刷新全部"；关闭后刷新全部时跳过，单行刷新不受影响
 	LastRefreshError *string
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
@@ -55,6 +57,7 @@ type ProviderRefreshSource struct {
 type RefreshResult struct {
 	BaseURL string `json:"base_url"`
 	Success bool   `json:"success"`
+	Skipped bool   `json:"skipped,omitempty"` // sync_balance=false，刷新全部时被跳过
 	Message string `json:"message,omitempty"`
 }
 
@@ -64,8 +67,10 @@ type ChannelProviderRepository interface {
 	ListAll(ctx context.Context) ([]*ChannelProvider, error)
 	// GetByBaseURL 按标准化后的 baseURL 查询单个渠道商。
 	GetByBaseURL(ctx context.Context, baseURL string) (*ChannelProvider, error)
-	// Upsert 按 base_url 唯一约束插入或更新（用于充值金额编辑）。
-	Upsert(ctx context.Context, p *ChannelProvider) error
+	// UpdateProvider 按 base_url 插入或更新可编辑字段（充值金额 / 名称 / quota 系数）。
+	UpdateProvider(ctx context.Context, baseURL string, rechargeAmount float64, displayName string, quotaPerUnit int64) error
+	// SetSyncBalance 切换是否参与"刷新全部"的余额同步。
+	SetSyncBalance(ctx context.Context, baseURL string, enabled bool) error
 	// UpdateBalance 更新余额相关字段。
 	UpdateBalance(ctx context.Context, baseURL string, balance *float64, unit string, isValid bool, errMsg string, checkedAt time.Time) error
 	// ListAggregated 聚合 accounts 表按 base_url 去重，LEFT JOIN channel_providers，
@@ -98,23 +103,28 @@ func (s *ChannelProviderService) List(ctx context.Context) ([]ChannelProviderAgg
 	return s.providerRepo.ListAggregated(ctx)
 }
 
-// UpdateRechargeAmount 更新某个渠道商的充值金额。baseURL 会被标准化。
-func (s *ChannelProviderService) UpdateRechargeAmount(ctx context.Context, baseURL string, amount float64) error {
+// UpdateProvider 更新某个渠道商的可编辑字段（充值金额 / 名称 / quota 系数）。baseURL 会被标准化。
+func (s *ChannelProviderService) UpdateProvider(ctx context.Context, baseURL string, rechargeAmount float64, displayName string, quotaPerUnit int64) error {
 	normalized := NormalizeBaseURL(baseURL)
 	if normalized == "" {
 		return infraerrors.BadRequest("CHANNEL_PROVIDER_EMPTY_BASE_URL", "base_url is required")
 	}
-	if amount < 0 {
+	if rechargeAmount < 0 {
 		return infraerrors.BadRequest("CHANNEL_PROVIDER_INVALID_AMOUNT", "recharge_amount must be >= 0")
 	}
-	p := &ChannelProvider{
-		BaseURL:        normalized,
-		RechargeAmount: amount,
+	if quotaPerUnit <= 0 {
+		quotaPerUnit = 500000
 	}
-	if err := s.providerRepo.Upsert(ctx, p); err != nil {
-		return err
+	return s.providerRepo.UpdateProvider(ctx, normalized, rechargeAmount, displayName, quotaPerUnit)
+}
+
+// SetSyncBalance 切换是否参与"刷新全部"的余额同步。baseURL 会被标准化。
+func (s *ChannelProviderService) SetSyncBalance(ctx context.Context, baseURL string, enabled bool) error {
+	normalized := NormalizeBaseURL(baseURL)
+	if normalized == "" {
+		return infraerrors.BadRequest("CHANNEL_PROVIDER_EMPTY_BASE_URL", "base_url is required")
 	}
-	return nil
+	return s.providerRepo.SetSyncBalance(ctx, normalized, enabled)
 }
 
 // RefreshBalance 刷新单个渠道商的余额：取该 baseUrl 下任一有效 api_key 账号，
@@ -138,7 +148,13 @@ func (s *ChannelProviderService) RefreshBalance(ctx context.Context, baseURL str
 			"no active api_key account found for base_url: %s", normalized)
 	}
 
-	balance, unit, isValid, refreshErr := s.fetchUpstreamBalance(ctx, source)
+	// 读取渠道商配置：quota_per_unit 仅用于 NewAPI /api/user/self 的 quota→USD 换算
+	var quotaPerUnit int64 = 500000
+	if existing, _ := s.providerRepo.GetByBaseURL(ctx, normalized); existing != nil && existing.QuotaPerUnit > 0 {
+		quotaPerUnit = existing.QuotaPerUnit
+	}
+
+	balance, unit, isValid, refreshErr := s.fetchUpstreamBalance(ctx, source, quotaPerUnit)
 	checkedAt := time.Now()
 	if refreshErr != nil {
 		s.recordRefreshFailure(ctx, normalized, refreshErr.Error())
@@ -156,27 +172,37 @@ func (s *ChannelProviderService) RefreshBalance(ctx context.Context, baseURL str
 }
 
 // RefreshAllBalances 并发刷新所有渠道商余额，并发上限 5。单个失败不中断其他。
+// sync_balance=false 的渠道商会被跳过（标记 Skipped，不发起上游请求）；单行刷新不受此开关影响。
 func (s *ChannelProviderService) RefreshAllBalances(ctx context.Context) ([]RefreshResult, error) {
 	providers, err := s.providerRepo.ListAggregated(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	// 基于 ListAggregated 的结果派生待刷新的 base_url 列表（已天然去重）。
-	baseURLs := make([]string, 0, len(providers))
+	// 结果按 providers 顺序填充，便于前端汇总成功/失败/跳过。
+	results := make([]RefreshResult, len(providers))
+	type refreshTask struct {
+		idx     int
+		baseURL string
+	}
+	tasks := make([]refreshTask, 0, len(providers))
 	for i := range providers {
-		if b := NormalizeBaseURL(providers[i].BaseURL); b != "" {
-			baseURLs = append(baseURLs, b)
+		baseURL := NormalizeBaseURL(providers[i].BaseURL)
+		if baseURL == "" {
+			continue
 		}
+		if !providers[i].SyncBalance {
+			results[i] = RefreshResult{BaseURL: baseURL, Success: true, Skipped: true}
+			continue
+		}
+		tasks = append(tasks, refreshTask{idx: i, baseURL: baseURL})
 	}
 
-	results := make([]RefreshResult, len(baseURLs))
 	sem := make(chan struct{}, channelProviderRefreshConcurrency)
 	var wg sync.WaitGroup
 
-	for i, raw := range baseURLs {
-		baseURL := raw
-		idx := i
+	for _, tk := range tasks {
+		idx, baseURL := tk.idx, tk.baseURL
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -211,7 +237,7 @@ func (s *ChannelProviderService) RefreshAllBalances(ctx context.Context) ([]Refr
 //
 // URL 拼接复用 buildOpenAIEndpointURL，自动处理 base_url 是否已含 /v1 版本后缀。
 // 整个流程（含 fallback）共享一个超时，避免逐请求叠加超时。
-func (s *ChannelProviderService) fetchUpstreamBalance(ctx context.Context, source *ProviderRefreshSource) (*float64, string, bool, error) {
+func (s *ChannelProviderService) fetchUpstreamBalance(ctx context.Context, source *ProviderRefreshSource, quotaPerUnit int64) (*float64, string, bool, error) {
 	if source == nil {
 		return nil, "USD", false, infraerrors.BadRequest("CHANNEL_PROVIDER_EMPTY_SOURCE", "refresh source is nil")
 	}
@@ -254,7 +280,7 @@ func (s *ChannelProviderService) fetchUpstreamBalance(ctx context.Context, sourc
 	}
 
 	// 3) NewAPI(原生)：GET /api/user/self
-	return s.tryNewAPIUserSelf(callCtx, client, apiKey, base)
+	return s.tryNewAPIUserSelf(callCtx, client, apiKey, base, quotaPerUnit)
 }
 
 // tryUsageEndpoint 请求 /v1/usage（sub2api 类上游接口）。
@@ -341,8 +367,8 @@ func (s *ChannelProviderService) tryNewAPIBilling(ctx context.Context, client *h
 // 与 /v1/* 不同，/api/* 是管理路径，需从 base_url 提取 host（去掉 /v1 path）后拼接。
 // 鉴权：Bearer sk-xxx（多数 NewAPI 部署接受 API key）或用户 access token。
 // 返回 data.quota（NewAPI 内部计费点，充值增加、消费减少，即当前剩余余额），
-// 按默认 QuotaPerUnit=500000 换算成 USD。
-func (s *ChannelProviderService) tryNewAPIUserSelf(ctx context.Context, client *http.Client, apiKey, base string) (*float64, string, bool, error) {
+// 按传入的 quotaPerUnit（来自渠道商配置，默认 500000）换算成 USD。
+func (s *ChannelProviderService) tryNewAPIUserSelf(ctx context.Context, client *http.Client, apiKey, base string, quotaPerUnit int64) (*float64, string, bool, error) {
 	endpoint := buildAPIPathURL(base, "/api/user/self")
 	statusCode, body, err := doUpstreamGet(ctx, client, apiKey, endpoint)
 	if err != nil {
@@ -378,9 +404,12 @@ func (s *ChannelProviderService) tryNewAPIUserSelf(ctx context.Context, client *
 	}
 
 	// NewAPI quota 是内部计费点：充值增加、消费减少，data.quota 即当前剩余余额。
-	// 默认 QuotaPerUnit = 500000（即 500000 点 = 1 USD）。
-	const newAPIQuotaPerUnit = 500000.0
-	balance := float64(resp.Data.Quota) / newAPIQuotaPerUnit
+	// quotaPerUnit 来自渠道商配置（默认 500000，即 500000 点 = 1 USD；codexapis 这类
+	// 可能是 5000000）。不同 NewAPI 部署系数不同，因此做成可编辑字段。
+	if quotaPerUnit <= 0 {
+		quotaPerUnit = 500000
+	}
+	balance := float64(resp.Data.Quota) / float64(quotaPerUnit)
 	return &balance, "USD", true, nil
 }
 
