@@ -204,7 +204,7 @@ const columns = computed<Column[]>(() => [
   { key: 'balance', label: t('admin.channelProviders.columns.balance'), sortable: false },
   { key: 'balance_checked_at', label: t('admin.channelProviders.columns.balanceCheckedAt'), sortable: false },
   { key: 'account_count', label: t('admin.channelProviders.columns.accountCount'), sortable: false },
-  { key: 'sync_balance', label: t('admin.channelProviders.columns.syncBalance'), sortable: false },
+  { key: 'sync_balance', label: t('admin.channelProviders.columns.syncBalance'), sortable: true },
   { key: 'actions', label: t('admin.channelProviders.columns.actions'), sortable: false }
 ])
 
