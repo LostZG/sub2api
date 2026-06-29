@@ -219,6 +219,38 @@ func (_u *ChannelProviderUpdate) ClearLastRefreshError() *ChannelProviderUpdate 
 	return _u
 }
 
+// SetGroupRatio sets the "group_ratio" field.
+func (_u *ChannelProviderUpdate) SetGroupRatio(v map[string]float64) *ChannelProviderUpdate {
+	_u.mutation.SetGroupRatio(v)
+	return _u
+}
+
+// ClearGroupRatio clears the value of the "group_ratio" field.
+func (_u *ChannelProviderUpdate) ClearGroupRatio() *ChannelProviderUpdate {
+	_u.mutation.ClearGroupRatio()
+	return _u
+}
+
+// SetGroupRatioCheckedAt sets the "group_ratio_checked_at" field.
+func (_u *ChannelProviderUpdate) SetGroupRatioCheckedAt(v time.Time) *ChannelProviderUpdate {
+	_u.mutation.SetGroupRatioCheckedAt(v)
+	return _u
+}
+
+// SetNillableGroupRatioCheckedAt sets the "group_ratio_checked_at" field if the given value is not nil.
+func (_u *ChannelProviderUpdate) SetNillableGroupRatioCheckedAt(v *time.Time) *ChannelProviderUpdate {
+	if v != nil {
+		_u.SetGroupRatioCheckedAt(*v)
+	}
+	return _u
+}
+
+// ClearGroupRatioCheckedAt clears the value of the "group_ratio_checked_at" field.
+func (_u *ChannelProviderUpdate) ClearGroupRatioCheckedAt() *ChannelProviderUpdate {
+	_u.mutation.ClearGroupRatioCheckedAt()
+	return _u
+}
+
 // Mutation returns the ChannelProviderMutation object of the builder.
 func (_u *ChannelProviderUpdate) Mutation() *ChannelProviderMutation {
 	return _u.mutation
@@ -345,6 +377,18 @@ func (_u *ChannelProviderUpdate) sqlSave(ctx context.Context) (_node int, err er
 	}
 	if _u.mutation.LastRefreshErrorCleared() {
 		_spec.ClearField(channelprovider.FieldLastRefreshError, field.TypeString)
+	}
+	if value, ok := _u.mutation.GroupRatio(); ok {
+		_spec.SetField(channelprovider.FieldGroupRatio, field.TypeJSON, value)
+	}
+	if _u.mutation.GroupRatioCleared() {
+		_spec.ClearField(channelprovider.FieldGroupRatio, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.GroupRatioCheckedAt(); ok {
+		_spec.SetField(channelprovider.FieldGroupRatioCheckedAt, field.TypeTime, value)
+	}
+	if _u.mutation.GroupRatioCheckedAtCleared() {
+		_spec.ClearField(channelprovider.FieldGroupRatioCheckedAt, field.TypeTime)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -557,6 +601,38 @@ func (_u *ChannelProviderUpdateOne) ClearLastRefreshError() *ChannelProviderUpda
 	return _u
 }
 
+// SetGroupRatio sets the "group_ratio" field.
+func (_u *ChannelProviderUpdateOne) SetGroupRatio(v map[string]float64) *ChannelProviderUpdateOne {
+	_u.mutation.SetGroupRatio(v)
+	return _u
+}
+
+// ClearGroupRatio clears the value of the "group_ratio" field.
+func (_u *ChannelProviderUpdateOne) ClearGroupRatio() *ChannelProviderUpdateOne {
+	_u.mutation.ClearGroupRatio()
+	return _u
+}
+
+// SetGroupRatioCheckedAt sets the "group_ratio_checked_at" field.
+func (_u *ChannelProviderUpdateOne) SetGroupRatioCheckedAt(v time.Time) *ChannelProviderUpdateOne {
+	_u.mutation.SetGroupRatioCheckedAt(v)
+	return _u
+}
+
+// SetNillableGroupRatioCheckedAt sets the "group_ratio_checked_at" field if the given value is not nil.
+func (_u *ChannelProviderUpdateOne) SetNillableGroupRatioCheckedAt(v *time.Time) *ChannelProviderUpdateOne {
+	if v != nil {
+		_u.SetGroupRatioCheckedAt(*v)
+	}
+	return _u
+}
+
+// ClearGroupRatioCheckedAt clears the value of the "group_ratio_checked_at" field.
+func (_u *ChannelProviderUpdateOne) ClearGroupRatioCheckedAt() *ChannelProviderUpdateOne {
+	_u.mutation.ClearGroupRatioCheckedAt()
+	return _u
+}
+
 // Mutation returns the ChannelProviderMutation object of the builder.
 func (_u *ChannelProviderUpdateOne) Mutation() *ChannelProviderMutation {
 	return _u.mutation
@@ -713,6 +789,18 @@ func (_u *ChannelProviderUpdateOne) sqlSave(ctx context.Context) (_node *Channel
 	}
 	if _u.mutation.LastRefreshErrorCleared() {
 		_spec.ClearField(channelprovider.FieldLastRefreshError, field.TypeString)
+	}
+	if value, ok := _u.mutation.GroupRatio(); ok {
+		_spec.SetField(channelprovider.FieldGroupRatio, field.TypeJSON, value)
+	}
+	if _u.mutation.GroupRatioCleared() {
+		_spec.ClearField(channelprovider.FieldGroupRatio, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.GroupRatioCheckedAt(); ok {
+		_spec.SetField(channelprovider.FieldGroupRatioCheckedAt, field.TypeTime, value)
+	}
+	if _u.mutation.GroupRatioCheckedAtCleared() {
+		_spec.ClearField(channelprovider.FieldGroupRatioCheckedAt, field.TypeTime)
 	}
 	_node = &ChannelProvider{config: _u.config}
 	_spec.Assign = _node.assignValues

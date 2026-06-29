@@ -21,19 +21,33 @@ import (
 // 余额等是渠道商维度的。该结构体仅保存可手动编辑的充值金额与定期刷新得到的
 // 余额快照，账号数据仍以 accounts 表为准。
 type ChannelProvider struct {
-	ID               int64
-	BaseURL          string
-	DisplayName      *string
-	RechargeAmount   float64
-	QuotaPerUnit     int64 // NewAPI 类 quota→USD 系数（默认 500000），仅 /api/user/self 查询用
-	Balance          *float64
-	BalanceUnit      string
-	BalanceCheckedAt *time.Time
-	IsValid          bool
-	SyncBalance      bool // 是否参与"刷新全部"；关闭后刷新全部时跳过，单行刷新不受影响
-	LastRefreshError *string
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
+	ID                  int64
+	BaseURL             string
+	DisplayName         *string
+	RechargeAmount      float64
+	QuotaPerUnit        int64 // NewAPI 类 quota→USD 系数（默认 500000），仅 /api/user/self 查询用
+	Balance             *float64
+	BalanceUnit         string
+	BalanceCheckedAt    *time.Time
+	IsValid             bool
+	SyncBalance         bool // 是否参与"刷新全部"；关闭后刷新全部时跳过，单行刷新不受影响
+	LastRefreshError    *string
+	GroupRatio          map[string]float64 // 上游 NewAPI /api/pricing 的 group_ratio 映射，空表示未刷新
+	GroupRatioCheckedAt *time.Time         // 最近一次刷新分组倍率的时间
+	CreatedAt           time.Time
+	UpdatedAt           time.Time
+}
+
+// ProviderAccountBrief 是渠道号商弹框展示的账号摘要（不含任何 credentials）。
+type ProviderAccountBrief struct {
+	ID             int64      `json:"id"`
+	Name           string     `json:"name"`
+	Platform       string     `json:"platform"`
+	Status         string     `json:"status"`
+	Priority       int        `json:"priority"`
+	RateMultiplier float64    `json:"rate_multiplier"`
+	LastUsedAt     *time.Time `json:"last_used_at"`
+	UpstreamGroup  *string    `json:"upstream_group"`
 }
 
 // ChannelProviderAggregated 是列表视图：渠道商信息 + 该 baseUrl 下的账号数量。
@@ -79,6 +93,11 @@ type ChannelProviderRepository interface {
 	// status='active' 且 credentials 含可用 api_key 的账号的上游调用凭据。
 	// NewAPI 类余额刷新需遍历所有账号累加 usage，因此返回全部而非单个。
 	FindAllActiveAPIKeyAccountsByBaseURL(ctx context.Context, normalizedBaseURL string) ([]*ProviderRefreshSource, error)
+	// FindAllAccountsByBaseURL 返回该标准化 baseUrl 下全部账号的展示用摘要（不含 credentials）。
+	// 用于渠道号商弹框。保留 deleted_at IS NULL，不限 status。
+	FindAllAccountsByBaseURL(ctx context.Context, normalizedBaseURL string) ([]ProviderAccountBrief, error)
+	// UpdateGroupRatio 写入 /api/pricing 刷新得到的分组倍率映射与时间。记录不存在时自动插入。
+	UpdateGroupRatio(ctx context.Context, baseURL string, ratioMap map[string]float64, checkedAt time.Time) error
 }
 
 // ChannelProviderService 提供渠道商列表、充值金额编辑、余额刷新等业务能力。
@@ -169,6 +188,104 @@ func (s *ChannelProviderService) RefreshBalance(ctx context.Context, baseURL str
 	}
 
 	return s.providerRepo.GetByBaseURL(ctx, normalized)
+}
+
+// ListAccountsByBaseURL 返回该渠道商下所有账号摘要 + 渠道商本身（含 group_ratio 缓存），
+// 供弹框展示与"最新倍率"计算。baseURL 会被标准化。账号列表不含任何 credentials。
+func (s *ChannelProviderService) ListAccountsByBaseURL(ctx context.Context, baseURL string) ([]ProviderAccountBrief, *ChannelProvider, error) {
+	normalized := NormalizeBaseURL(baseURL)
+	if normalized == "" {
+		return nil, nil, infraerrors.BadRequest("CHANNEL_PROVIDER_EMPTY_BASE_URL", "base_url is required")
+	}
+	accounts, err := s.providerRepo.FindAllAccountsByBaseURL(ctx, normalized)
+	if err != nil {
+		return nil, nil, err
+	}
+	provider, _ := s.providerRepo.GetByBaseURL(ctx, normalized)
+	return accounts, provider, nil
+}
+
+// RefreshGroupRatio 调 GET {base}/api/pricing，提取 data.group_ratio 写回缓存。
+// 取该 baseUrl 下第一个有效 api_key 账号作为调用凭据（复用余额刷新的凭据来源）。
+func (s *ChannelProviderService) RefreshGroupRatio(ctx context.Context, baseURL string) (*ChannelProvider, error) {
+	normalized := NormalizeBaseURL(baseURL)
+	if normalized == "" {
+		return nil, infraerrors.BadRequest("CHANNEL_PROVIDER_EMPTY_BASE_URL", "base_url is required")
+	}
+
+	sources, err := s.providerRepo.FindAllActiveAPIKeyAccountsByBaseURL(ctx, normalized)
+	if err != nil {
+		return nil, infraerrors.Newf(http.StatusBadGateway, "CHANNEL_PROVIDER_REFRESH_FAILED",
+			"find active accounts failed: %v", err)
+	}
+	if len(sources) == 0 {
+		return nil, infraerrors.Newf(http.StatusNotFound, "CHANNEL_PROVIDER_NO_ACCOUNT",
+			"no active api_key account found for base_url: %s", normalized)
+	}
+
+	ratioMap, err := s.fetchUpstreamGroupRatio(ctx, sources)
+	if err != nil {
+		return nil, err
+	}
+	checkedAt := time.Now()
+	if err := s.providerRepo.UpdateGroupRatio(ctx, normalized, ratioMap, checkedAt); err != nil {
+		return nil, err
+	}
+	return s.providerRepo.GetByBaseURL(ctx, normalized)
+}
+
+// fetchUpstreamGroupRatio 用第一个有效凭据调 /api/pricing，解析 data.group_ratio。
+func (s *ChannelProviderService) fetchUpstreamGroupRatio(ctx context.Context, sources []*ProviderRefreshSource) (map[string]float64, error) {
+	first := sources[0]
+	apiKey := strings.TrimSpace(first.APIKey)
+	base := strings.TrimSpace(first.BaseURL)
+	if apiKey == "" || base == "" {
+		return nil, infraerrors.BadRequest("CHANNEL_PROVIDER_INVALID_CREDENTIALS", "api_key or base_url is empty")
+	}
+	proxyURL := ""
+	if first.Proxy != nil {
+		proxyURL = first.Proxy.URL()
+	}
+	client, err := httpclient.GetClient(httpclient.Options{
+		ProxyURL: proxyURL,
+		Timeout:  channelProviderRefreshTimeout,
+	})
+	if err != nil {
+		return nil, infraerrors.Newf(http.StatusBadGateway, "CHANNEL_PROVIDER_CLIENT_ERROR",
+			"build http client failed: %v", err)
+	}
+	callCtx, cancel := context.WithTimeout(ctx, channelProviderRefreshTimeout)
+	defer cancel()
+
+	endpoint := buildOpenAIEndpointURL(base, "/api/pricing")
+	statusCode, body, err := doUpstreamGet(callCtx, client, apiKey, endpoint)
+	if err != nil {
+		return nil, infraerrors.Newf(http.StatusBadGateway, "CHANNEL_PROVIDER_REQUEST_FAILED",
+			"upstream /api/pricing request failed: %v", err)
+	}
+	if statusCode < 200 || statusCode >= 300 {
+		snippet := truncateBody(string(body), 240)
+		slog.Warn("channel_provider_group_ratio_non_2xx",
+			"endpoint", "/api/pricing", "status", statusCode, "body", snippet)
+		return nil, infraerrors.Newf(http.StatusBadGateway, "CHANNEL_PROVIDER_UPSTREAM_ERROR",
+			"/api/pricing returned %d: %s", statusCode, snippet)
+	}
+
+	var payload pricingResponse
+	if jsonErr := json.Unmarshal(body, &payload); jsonErr != nil {
+		snippet := truncateBody(string(body), 240)
+		return nil, infraerrors.Newf(http.StatusInternalServerError, "CHANNEL_PROVIDER_PARSE_FAILED",
+			"parse /api/pricing response failed: %v, body: %s", jsonErr, snippet)
+	}
+	return payload.Data.GroupRatio, nil
+}
+
+// pricingResponse 是 NewAPI /api/pricing 响应的宽松投影。
+// group_ratio 在 data 下，是 分组名→倍率 的映射。
+type pricingResponse struct {
+	Data struct {
+		GroupRatio map[string]float64 `json:"group_ratio"`
+	} `json:"data"`
 }
 
 // RefreshAllBalances 并发刷新所有渠道商余额，并发上限 5。单个失败不中断其他。

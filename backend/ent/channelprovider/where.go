@@ -114,6 +114,11 @@ func LastRefreshError(v string) predicate.ChannelProvider {
 	return predicate.ChannelProvider(sql.FieldEQ(FieldLastRefreshError, v))
 }
 
+// GroupRatioCheckedAt applies equality check predicate on the "group_ratio_checked_at" field. It's identical to GroupRatioCheckedAtEQ.
+func GroupRatioCheckedAt(v time.Time) predicate.ChannelProvider {
+	return predicate.ChannelProvider(sql.FieldEQ(FieldGroupRatioCheckedAt, v))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.ChannelProvider {
 	return predicate.ChannelProvider(sql.FieldEQ(FieldCreatedAt, v))
@@ -672,6 +677,66 @@ func LastRefreshErrorEqualFold(v string) predicate.ChannelProvider {
 // LastRefreshErrorContainsFold applies the ContainsFold predicate on the "last_refresh_error" field.
 func LastRefreshErrorContainsFold(v string) predicate.ChannelProvider {
 	return predicate.ChannelProvider(sql.FieldContainsFold(FieldLastRefreshError, v))
+}
+
+// GroupRatioIsNil applies the IsNil predicate on the "group_ratio" field.
+func GroupRatioIsNil() predicate.ChannelProvider {
+	return predicate.ChannelProvider(sql.FieldIsNull(FieldGroupRatio))
+}
+
+// GroupRatioNotNil applies the NotNil predicate on the "group_ratio" field.
+func GroupRatioNotNil() predicate.ChannelProvider {
+	return predicate.ChannelProvider(sql.FieldNotNull(FieldGroupRatio))
+}
+
+// GroupRatioCheckedAtEQ applies the EQ predicate on the "group_ratio_checked_at" field.
+func GroupRatioCheckedAtEQ(v time.Time) predicate.ChannelProvider {
+	return predicate.ChannelProvider(sql.FieldEQ(FieldGroupRatioCheckedAt, v))
+}
+
+// GroupRatioCheckedAtNEQ applies the NEQ predicate on the "group_ratio_checked_at" field.
+func GroupRatioCheckedAtNEQ(v time.Time) predicate.ChannelProvider {
+	return predicate.ChannelProvider(sql.FieldNEQ(FieldGroupRatioCheckedAt, v))
+}
+
+// GroupRatioCheckedAtIn applies the In predicate on the "group_ratio_checked_at" field.
+func GroupRatioCheckedAtIn(vs ...time.Time) predicate.ChannelProvider {
+	return predicate.ChannelProvider(sql.FieldIn(FieldGroupRatioCheckedAt, vs...))
+}
+
+// GroupRatioCheckedAtNotIn applies the NotIn predicate on the "group_ratio_checked_at" field.
+func GroupRatioCheckedAtNotIn(vs ...time.Time) predicate.ChannelProvider {
+	return predicate.ChannelProvider(sql.FieldNotIn(FieldGroupRatioCheckedAt, vs...))
+}
+
+// GroupRatioCheckedAtGT applies the GT predicate on the "group_ratio_checked_at" field.
+func GroupRatioCheckedAtGT(v time.Time) predicate.ChannelProvider {
+	return predicate.ChannelProvider(sql.FieldGT(FieldGroupRatioCheckedAt, v))
+}
+
+// GroupRatioCheckedAtGTE applies the GTE predicate on the "group_ratio_checked_at" field.
+func GroupRatioCheckedAtGTE(v time.Time) predicate.ChannelProvider {
+	return predicate.ChannelProvider(sql.FieldGTE(FieldGroupRatioCheckedAt, v))
+}
+
+// GroupRatioCheckedAtLT applies the LT predicate on the "group_ratio_checked_at" field.
+func GroupRatioCheckedAtLT(v time.Time) predicate.ChannelProvider {
+	return predicate.ChannelProvider(sql.FieldLT(FieldGroupRatioCheckedAt, v))
+}
+
+// GroupRatioCheckedAtLTE applies the LTE predicate on the "group_ratio_checked_at" field.
+func GroupRatioCheckedAtLTE(v time.Time) predicate.ChannelProvider {
+	return predicate.ChannelProvider(sql.FieldLTE(FieldGroupRatioCheckedAt, v))
+}
+
+// GroupRatioCheckedAtIsNil applies the IsNil predicate on the "group_ratio_checked_at" field.
+func GroupRatioCheckedAtIsNil() predicate.ChannelProvider {
+	return predicate.ChannelProvider(sql.FieldIsNull(FieldGroupRatioCheckedAt))
+}
+
+// GroupRatioCheckedAtNotNil applies the NotNil predicate on the "group_ratio_checked_at" field.
+func GroupRatioCheckedAtNotNil() predicate.ChannelProvider {
+	return predicate.ChannelProvider(sql.FieldNotNull(FieldGroupRatioCheckedAt))
 }
 
 // And groups predicates with the AND operator between them.

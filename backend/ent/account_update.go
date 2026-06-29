@@ -268,6 +268,26 @@ func (_u *AccountUpdate) AddRateMultiplier(v float64) *AccountUpdate {
 	return _u
 }
 
+// SetUpstreamGroup sets the "upstream_group" field.
+func (_u *AccountUpdate) SetUpstreamGroup(v string) *AccountUpdate {
+	_u.mutation.SetUpstreamGroup(v)
+	return _u
+}
+
+// SetNillableUpstreamGroup sets the "upstream_group" field if the given value is not nil.
+func (_u *AccountUpdate) SetNillableUpstreamGroup(v *string) *AccountUpdate {
+	if v != nil {
+		_u.SetUpstreamGroup(*v)
+	}
+	return _u
+}
+
+// ClearUpstreamGroup clears the value of the "upstream_group" field.
+func (_u *AccountUpdate) ClearUpstreamGroup() *AccountUpdate {
+	_u.mutation.ClearUpstreamGroup()
+	return _u
+}
+
 // SetStatus sets the "status" field.
 func (_u *AccountUpdate) SetStatus(v string) *AccountUpdate {
 	_u.mutation.SetStatus(v)
@@ -677,6 +697,11 @@ func (_u *AccountUpdate) check() error {
 			return &ValidationError{Name: "type", err: fmt.Errorf(`ent: validator failed for field "Account.type": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.UpstreamGroup(); ok {
+		if err := account.UpstreamGroupValidator(v); err != nil {
+			return &ValidationError{Name: "upstream_group", err: fmt.Errorf(`ent: validator failed for field "Account.upstream_group": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Status(); ok {
 		if err := account.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "Account.status": %w`, err)}
@@ -767,6 +792,12 @@ func (_u *AccountUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.AddedRateMultiplier(); ok {
 		_spec.AddField(account.FieldRateMultiplier, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.UpstreamGroup(); ok {
+		_spec.SetField(account.FieldUpstreamGroup, field.TypeString, value)
+	}
+	if _u.mutation.UpstreamGroupCleared() {
+		_spec.ClearField(account.FieldUpstreamGroup, field.TypeString)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(account.FieldStatus, field.TypeString, value)
@@ -1231,6 +1262,26 @@ func (_u *AccountUpdateOne) AddRateMultiplier(v float64) *AccountUpdateOne {
 	return _u
 }
 
+// SetUpstreamGroup sets the "upstream_group" field.
+func (_u *AccountUpdateOne) SetUpstreamGroup(v string) *AccountUpdateOne {
+	_u.mutation.SetUpstreamGroup(v)
+	return _u
+}
+
+// SetNillableUpstreamGroup sets the "upstream_group" field if the given value is not nil.
+func (_u *AccountUpdateOne) SetNillableUpstreamGroup(v *string) *AccountUpdateOne {
+	if v != nil {
+		_u.SetUpstreamGroup(*v)
+	}
+	return _u
+}
+
+// ClearUpstreamGroup clears the value of the "upstream_group" field.
+func (_u *AccountUpdateOne) ClearUpstreamGroup() *AccountUpdateOne {
+	_u.mutation.ClearUpstreamGroup()
+	return _u
+}
+
 // SetStatus sets the "status" field.
 func (_u *AccountUpdateOne) SetStatus(v string) *AccountUpdateOne {
 	_u.mutation.SetStatus(v)
@@ -1653,6 +1704,11 @@ func (_u *AccountUpdateOne) check() error {
 			return &ValidationError{Name: "type", err: fmt.Errorf(`ent: validator failed for field "Account.type": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.UpstreamGroup(); ok {
+		if err := account.UpstreamGroupValidator(v); err != nil {
+			return &ValidationError{Name: "upstream_group", err: fmt.Errorf(`ent: validator failed for field "Account.upstream_group": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Status(); ok {
 		if err := account.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "Account.status": %w`, err)}
@@ -1760,6 +1816,12 @@ func (_u *AccountUpdateOne) sqlSave(ctx context.Context) (_node *Account, err er
 	}
 	if value, ok := _u.mutation.AddedRateMultiplier(); ok {
 		_spec.AddField(account.FieldRateMultiplier, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.UpstreamGroup(); ok {
+		_spec.SetField(account.FieldUpstreamGroup, field.TypeString, value)
+	}
+	if _u.mutation.UpstreamGroupCleared() {
+		_spec.ClearField(account.FieldUpstreamGroup, field.TypeString)
 	}
 	if value, ok := _u.mutation.Status(); ok {
 		_spec.SetField(account.FieldStatus, field.TypeString, value)

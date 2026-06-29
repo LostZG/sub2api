@@ -113,6 +113,13 @@ func (Account) Fields() []ent.Field {
 			SchemaType(map[string]string{dialect.Postgres: "decimal(10,4)"}).
 			Default(1.0),
 
+		// upstream_group: 上游 NewAPI 部署里该 sk- key 绑定的分组名。
+		// 用于结合 channel_providers.group_ratio 缓存查"最新倍率"。用户手动填一次。
+		field.String("upstream_group").
+			Optional().
+			Nillable().
+			MaxLen(100),
+
 		// status: 账户状态，如 "active", "error", "disabled"
 		field.String("status").
 			MaxLen(20).

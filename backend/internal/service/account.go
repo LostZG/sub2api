@@ -32,7 +32,8 @@ type Account struct {
 	// RateMultiplier 账号计费倍率（>=0，允许 0 表示该账号计费为 0）。
 	// 使用指针用于兼容旧版本调度缓存（Redis）中缺字段的情况：nil 表示按 1.0 处理。
 	RateMultiplier     *float64
-	LoadFactor         *int // 调度负载因子；nil 表示使用 Concurrency
+	LoadFactor         *int    // 调度负载因子；nil 表示使用 Concurrency
+	UpstreamGroup      *string // 上游 NewAPI 分组名，结合 group_ratio 查最新倍率
 	Status             string
 	ErrorMessage       string
 	LastUsedAt         *time.Time

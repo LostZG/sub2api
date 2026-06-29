@@ -39,19 +39,33 @@ type refreshProviderRequest struct {
 }
 
 type channelProviderResponse struct {
-	ID               int64   `json:"id"`
-	BaseURL          string  `json:"base_url"`
-	DisplayName      *string `json:"display_name"`
-	RechargeAmount   float64 `json:"recharge_amount"`
-	QuotaPerUnit     int64   `json:"quota_per_unit"`
-	Balance          *float64 `json:"balance"`
-	BalanceUnit      string  `json:"balance_unit"`
-	BalanceCheckedAt string  `json:"balance_checked_at"`
-	IsValid          bool    `json:"is_valid"`
-	SyncBalance      bool    `json:"sync_balance"`
-	LastRefreshError string  `json:"last_refresh_error"`
-	AccountCount     int64   `json:"account_count"`
-	UpdatedAt        string  `json:"updated_at"`
+	ID                  int64              `json:"id"`
+	BaseURL             string             `json:"base_url"`
+	DisplayName         *string            `json:"display_name"`
+	RechargeAmount      float64            `json:"recharge_amount"`
+	QuotaPerUnit        int64              `json:"quota_per_unit"`
+	Balance             *float64           `json:"balance"`
+	BalanceUnit         string             `json:"balance_unit"`
+	BalanceCheckedAt    string             `json:"balance_checked_at"`
+	IsValid             bool               `json:"is_valid"`
+	SyncBalance         bool               `json:"sync_balance"`
+	LastRefreshError    string             `json:"last_refresh_error"`
+	GroupRatio          map[string]float64 `json:"group_ratio"`
+	GroupRatioCheckedAt string             `json:"group_ratio_checked_at"`
+	AccountCount        int64              `json:"account_count"`
+	UpdatedAt           string             `json:"updated_at"`
+}
+
+// providerAccountResponse 是渠道号商弹框展示的账号摘要（不含 credentials）。
+type providerAccountResponse struct {
+	ID             int64   `json:"id"`
+	Name           string  `json:"name"`
+	Platform       string  `json:"platform"`
+	Status         string  `json:"status"`
+	Priority       int     `json:"priority"`
+	RateMultiplier float64 `json:"rate_multiplier"`
+	LastUsedAt     string  `json:"last_used_at"`
+	UpstreamGroup  string  `json:"upstream_group"`
 }
 
 func providerToResponse(agg *service.ChannelProviderAggregated) *channelProviderResponse {
@@ -68,6 +82,7 @@ func providerToResponse(agg *service.ChannelProviderAggregated) *channelProvider
 		BalanceUnit:    agg.BalanceUnit,
 		IsValid:        agg.IsValid,
 		SyncBalance:    agg.SyncBalance,
+		GroupRatio:     agg.GroupRatio,
 		AccountCount:   agg.AccountCount,
 		UpdatedAt:      agg.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}
@@ -76,6 +91,9 @@ func providerToResponse(agg *service.ChannelProviderAggregated) *channelProvider
 	}
 	if agg.LastRefreshError != nil {
 		resp.LastRefreshError = *agg.LastRefreshError
+	}
+	if agg.GroupRatioCheckedAt != nil {
+		resp.GroupRatioCheckedAt = agg.GroupRatioCheckedAt.Format("2006-01-02T15:04:05Z")
 	}
 	return resp
 }
@@ -94,6 +112,7 @@ func providerEntityToResponse(p *service.ChannelProvider) *channelProviderRespon
 		BalanceUnit:    p.BalanceUnit,
 		IsValid:        p.IsValid,
 		SyncBalance:    p.SyncBalance,
+		GroupRatio:     p.GroupRatio,
 		UpdatedAt:      p.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}
 	if p.BalanceCheckedAt != nil {
@@ -101,6 +120,27 @@ func providerEntityToResponse(p *service.ChannelProvider) *channelProviderRespon
 	}
 	if p.LastRefreshError != nil {
 		resp.LastRefreshError = *p.LastRefreshError
+	}
+	if p.GroupRatioCheckedAt != nil {
+		resp.GroupRatioCheckedAt = p.GroupRatioCheckedAt.Format("2006-01-02T15:04:05Z")
+	}
+	return resp
+}
+
+func accountBriefToResponse(b *service.ProviderAccountBrief) *providerAccountResponse {
+	resp := &providerAccountResponse{
+		ID:             b.ID,
+		Name:           b.Name,
+		Platform:       b.Platform,
+		Status:         b.Status,
+		Priority:       b.Priority,
+		RateMultiplier: b.RateMultiplier,
+	}
+	if b.LastUsedAt != nil {
+		resp.LastUsedAt = b.LastUsedAt.Format("2006-01-02T15:04:05Z")
+	}
+	if b.UpstreamGroup != nil {
+		resp.UpstreamGroup = *b.UpstreamGroup
 	}
 	return resp
 }
@@ -195,4 +235,60 @@ func (h *ChannelProviderHandler) RefreshAll(c *gin.Context) {
 		results = []service.RefreshResult{}
 	}
 	response.Success(c, results)
+}
+
+// ListAccounts 返回该渠道商下所有账号摘要 + 分组倍率缓存，供弹框展示。
+// GET /api/v1/admin/channel-providers/accounts?base_url=
+func (h *ChannelProviderHandler) ListAccounts(c *gin.Context) {
+	baseURL := c.Query("base_url")
+	if baseURL == "" {
+		response.ErrorFrom(c, infraerrors.BadRequest("VALIDATION_ERROR", "base_url is required"))
+		return
+	}
+
+	accounts, provider, err := h.providerService.ListAccountsByBaseURL(c.Request.Context(), baseURL)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	items := make([]*providerAccountResponse, 0, len(accounts))
+	for i := range accounts {
+		items = append(items, accountBriefToResponse(&accounts[i]))
+	}
+
+	groupRatio := map[string]float64{}
+	groupRatioCheckedAt := ""
+	if provider != nil {
+		if provider.GroupRatio != nil {
+			groupRatio = provider.GroupRatio
+		}
+		if provider.GroupRatioCheckedAt != nil {
+			groupRatioCheckedAt = provider.GroupRatioCheckedAt.Format("2006-01-02T15:04:05Z")
+		}
+	}
+
+	response.Success(c, gin.H{
+		"accounts":               items,
+		"group_ratio":            groupRatio,
+		"group_ratio_checked_at": groupRatioCheckedAt,
+	})
+}
+
+// RefreshGroupRatio 调上游 /api/pricing 刷新分组倍率映射，返回更新后的渠道商。
+// POST /api/v1/admin/channel-providers/refresh-group-ratio
+func (h *ChannelProviderHandler) RefreshGroupRatio(c *gin.Context) {
+	var req refreshProviderRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorFrom(c, infraerrors.BadRequest("VALIDATION_ERROR", err.Error()))
+		return
+	}
+
+	provider, err := h.providerService.RefreshGroupRatio(c.Request.Context(), req.BaseURL)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, providerEntityToResponse(provider))
 }

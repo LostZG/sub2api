@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -33,7 +34,8 @@ func NewChannelProviderRepository(sqlDB *sql.DB) service.ChannelProviderReposito
 func (r *channelProviderRepository) ListAll(ctx context.Context) ([]*service.ChannelProvider, error) {
 	rows, err := r.sql.QueryContext(ctx, `
 		SELECT id, base_url, display_name, recharge_amount, quota_per_unit, balance, balance_unit,
-		       balance_checked_at, is_valid, sync_balance, last_refresh_error, created_at, updated_at
+		       balance_checked_at, is_valid, sync_balance, last_refresh_error,
+		       group_ratio, group_ratio_checked_at, created_at, updated_at
 		FROM channel_providers
 		ORDER BY base_url ASC
 	`)
@@ -57,7 +59,8 @@ func (r *channelProviderRepository) ListAll(ctx context.Context) ([]*service.Cha
 func (r *channelProviderRepository) GetByBaseURL(ctx context.Context, baseURL string) (*service.ChannelProvider, error) {
 	row := r.sql.QueryRowContext(ctx, `
 		SELECT id, base_url, display_name, recharge_amount, quota_per_unit, balance, balance_unit,
-		       balance_checked_at, is_valid, sync_balance, last_refresh_error, created_at, updated_at
+		       balance_checked_at, is_valid, sync_balance, last_refresh_error,
+		       group_ratio, group_ratio_checked_at, created_at, updated_at
 		FROM channel_providers
 		WHERE base_url = $1
 	`, baseURL)
@@ -161,6 +164,7 @@ func (r *channelProviderRepository) ListAggregated(ctx context.Context) ([]servi
 		       COALESCE(cp.quota_per_unit, 500000) AS quota_per_unit,
 		       cp.balance, cp.balance_unit,
 		       cp.balance_checked_at, cp.is_valid, COALESCE(cp.sync_balance, TRUE) AS sync_balance, cp.last_refresh_error,
+		       cp.group_ratio, cp.group_ratio_checked_at,
 		       COALESCE(cp.created_at, '1970-01-01T00:00:00Z'::timestamptz) AS created_at,
 		       COALESCE(cp.updated_at, '1970-01-01T00:00:00Z'::timestamptz) AS updated_at
 		FROM normalized n
@@ -175,25 +179,28 @@ func (r *channelProviderRepository) ListAggregated(ctx context.Context) ([]servi
 	var out []service.ChannelProviderAggregated
 	for rows.Next() {
 		var (
-			baseURL       string
-			accountCount  int64
-			id            sql.NullInt64
-			displayName   sql.NullString
-			rechargeAmt   sql.NullFloat64
-			quotaPerUnit  int64
-			balance       sql.NullFloat64
-			balanceUnit   sql.NullString
-			balanceChk    sql.NullTime
-			isValid       sql.NullBool
-			syncBalance   sql.NullBool
-			lastErr       sql.NullString
-			createdAt     time.Time
-			updatedAt     time.Time
+			baseURL           string
+			accountCount      int64
+			id                sql.NullInt64
+			displayName       sql.NullString
+			rechargeAmt       sql.NullFloat64
+			quotaPerUnit      int64
+			balance           sql.NullFloat64
+			balanceUnit       sql.NullString
+			balanceChk        sql.NullTime
+			isValid           sql.NullBool
+			syncBalance       sql.NullBool
+			lastErr           sql.NullString
+			groupRatioRaw     []byte
+			groupRatioChecked sql.NullTime
+			createdAt         time.Time
+			updatedAt         time.Time
 		)
 		if err := rows.Scan(
 			&baseURL, &accountCount,
 			&id, &displayName, &rechargeAmt, &quotaPerUnit, &balance, &balanceUnit,
 			&balanceChk, &isValid, &syncBalance, &lastErr,
+			&groupRatioRaw, &groupRatioChecked,
 			&createdAt, &updatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("channel_provider scan aggregated: %w", err)
@@ -202,12 +209,12 @@ func (r *channelProviderRepository) ListAggregated(ctx context.Context) ([]servi
 		agg := service.ChannelProviderAggregated{
 			AccountCount: accountCount,
 			ChannelProvider: service.ChannelProvider{
-				BaseURL:       baseURL,
-				BalanceUnit:   "USD",
+				BaseURL:        baseURL,
+				BalanceUnit:    "USD",
 				RechargeAmount: 0,
-				IsValid:       true,
-				CreatedAt:     createdAt,
-				UpdatedAt:     updatedAt,
+				IsValid:        true,
+				CreatedAt:      createdAt,
+				UpdatedAt:      updatedAt,
 			},
 		}
 		if id.Valid {
@@ -242,6 +249,11 @@ func (r *channelProviderRepository) ListAggregated(ctx context.Context) ([]servi
 		if lastErr.Valid {
 			s := lastErr.String
 			agg.LastRefreshError = &s
+		}
+		agg.GroupRatio = parseGroupRatio(groupRatioRaw)
+		if groupRatioChecked.Valid {
+			t := groupRatioChecked.Time
+			agg.GroupRatioCheckedAt = &t
 		}
 		out = append(out, agg)
 	}
@@ -303,19 +315,83 @@ func (r *channelProviderRepository) FindAllActiveAPIKeyAccountsByBaseURL(ctx con
 	return out, rows.Err()
 }
 
+// FindAllAccountsByBaseURL 返回该标准化 baseUrl 下全部账号的展示用摘要（不含 credentials）。
+// 保留 deleted_at IS NULL，不限 status。按 priority、id 升序。
+func (r *channelProviderRepository) FindAllAccountsByBaseURL(ctx context.Context, normalizedBaseURL string) ([]service.ProviderAccountBrief, error) {
+	rows, err := r.sql.QueryContext(ctx, `
+		SELECT a.id, a.name, a.platform, a.status, a.priority,
+		       COALESCE(a.rate_multiplier, 1.0) AS rate_multiplier,
+		       a.last_used_at, a.upstream_group
+		FROM accounts a
+		WHERE a.deleted_at IS NULL
+		  AND LOWER(TRIM(TRAILING '/' FROM TRIM(a.credentials->>'base_url'))) = $1
+		ORDER BY a.priority ASC, a.id ASC
+	`, normalizedBaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("channel_provider find all accounts: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var out []service.ProviderAccountBrief
+	for rows.Next() {
+		var (
+			b           service.ProviderAccountBrief
+			lastUsed    sql.NullTime
+			upstreamGrp sql.NullString
+		)
+		if err := rows.Scan(&b.ID, &b.Name, &b.Platform, &b.Status, &b.Priority, &b.RateMultiplier, &lastUsed, &upstreamGrp); err != nil {
+			return nil, fmt.Errorf("channel_provider scan account brief: %w", err)
+		}
+		if lastUsed.Valid {
+			t := lastUsed.Time
+			b.LastUsedAt = &t
+		}
+		if upstreamGrp.Valid && upstreamGrp.String != "" {
+			s := upstreamGrp.String
+			b.UpstreamGroup = &s
+		}
+		out = append(out, b)
+	}
+	return out, rows.Err()
+}
+
+// UpdateGroupRatio 写入 /api/pricing 刷新得到的分组倍率映射与时间。
+// base_url 不存在时自动插入（刷新分组倍率可能先于充值金额编辑）。
+func (r *channelProviderRepository) UpdateGroupRatio(ctx context.Context, baseURL string, ratioMap map[string]float64, checkedAt time.Time) error {
+	payload, err := json.Marshal(ratioMap)
+	if err != nil {
+		return fmt.Errorf("channel_provider marshal group_ratio: %w", err)
+	}
+	_, err = r.sql.ExecContext(ctx, `
+		INSERT INTO channel_providers (base_url, recharge_amount, group_ratio, group_ratio_checked_at, created_at, updated_at)
+		VALUES ($1, 0, $2, $3, NOW(), NOW())
+		ON CONFLICT (base_url) DO UPDATE
+			SET group_ratio = EXCLUDED.group_ratio,
+			    group_ratio_checked_at = EXCLUDED.group_ratio_checked_at,
+			    updated_at = NOW()
+	`, baseURL, payload, checkedAt)
+	if err != nil {
+		return fmt.Errorf("channel_provider update group_ratio: %w", err)
+	}
+	return nil
+}
+
 // scanChannelProvider 从 *sql.Rows 扫描一行到 ChannelProvider。
 func scanChannelProvider(rows *sql.Rows) (*service.ChannelProvider, error) {
 	var (
-		p              service.ChannelProvider
-		displayName    sql.NullString
-		balance        sql.NullFloat64
-		balanceUnit    sql.NullString
-		balanceChecked sql.NullTime
-		lastErr        sql.NullString
+		p                 service.ChannelProvider
+		displayName       sql.NullString
+		balance           sql.NullFloat64
+		balanceUnit       sql.NullString
+		balanceChecked    sql.NullTime
+		lastErr           sql.NullString
+		groupRatioRaw     []byte
+		groupRatioChecked sql.NullTime
 	)
 	if err := rows.Scan(
 		&p.ID, &p.BaseURL, &displayName, &p.RechargeAmount, &p.QuotaPerUnit, &balance, &balanceUnit,
-		&balanceChecked, &p.IsValid, &p.SyncBalance, &lastErr, &p.CreatedAt, &p.UpdatedAt,
+		&balanceChecked, &p.IsValid, &p.SyncBalance, &lastErr,
+		&groupRatioRaw, &groupRatioChecked, &p.CreatedAt, &p.UpdatedAt,
 	); err != nil {
 		return nil, fmt.Errorf("channel_provider scan: %w", err)
 	}
@@ -339,22 +415,30 @@ func scanChannelProvider(rows *sql.Rows) (*service.ChannelProvider, error) {
 		s := lastErr.String
 		p.LastRefreshError = &s
 	}
+	p.GroupRatio = parseGroupRatio(groupRatioRaw)
+	if groupRatioChecked.Valid {
+		t := groupRatioChecked.Time
+		p.GroupRatioCheckedAt = &t
+	}
 	return &p, nil
 }
 
 // scanChannelProviderRow 从 *sql.Row（单行）扫描到 ChannelProvider。
 func scanChannelProviderRow(row *sql.Row) (*service.ChannelProvider, error) {
 	var (
-		p              service.ChannelProvider
-		displayName    sql.NullString
-		balance        sql.NullFloat64
-		balanceUnit    sql.NullString
-		balanceChecked sql.NullTime
-		lastErr        sql.NullString
+		p                 service.ChannelProvider
+		displayName       sql.NullString
+		balance           sql.NullFloat64
+		balanceUnit       sql.NullString
+		balanceChecked    sql.NullTime
+		lastErr           sql.NullString
+		groupRatioRaw     []byte
+		groupRatioChecked sql.NullTime
 	)
 	if err := row.Scan(
 		&p.ID, &p.BaseURL, &displayName, &p.RechargeAmount, &p.QuotaPerUnit, &balance, &balanceUnit,
-		&balanceChecked, &p.IsValid, &p.SyncBalance, &lastErr, &p.CreatedAt, &p.UpdatedAt,
+		&balanceChecked, &p.IsValid, &p.SyncBalance, &lastErr,
+		&groupRatioRaw, &groupRatioChecked, &p.CreatedAt, &p.UpdatedAt,
 	); err != nil {
 		return nil, err
 	}
@@ -378,7 +462,27 @@ func scanChannelProviderRow(row *sql.Row) (*service.ChannelProvider, error) {
 		s := lastErr.String
 		p.LastRefreshError = &s
 	}
+	p.GroupRatio = parseGroupRatio(groupRatioRaw)
+	if groupRatioChecked.Valid {
+		t := groupRatioChecked.Time
+		p.GroupRatioCheckedAt = &t
+	}
 	return &p, nil
+}
+
+// parseGroupRatio 解析 jsonb 字节到 map[string]float64。NULL 或空字节返回 nil。
+func parseGroupRatio(raw []byte) map[string]float64 {
+	if len(raw) == 0 {
+		return nil
+	}
+	var m map[string]float64
+	if err := json.Unmarshal(raw, &m); err != nil {
+		return nil
+	}
+	if len(m) == 0 {
+		return nil
+	}
+	return m
 }
 
 // defaultStr 在 v 为空时返回 fallback。

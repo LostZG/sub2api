@@ -2298,6 +2298,7 @@ type AccountMutation struct {
 	addpriority                 *int
 	rate_multiplier             *float64
 	addrate_multiplier          *float64
+	upstream_group              *string
 	status                      *string
 	error_message               *string
 	last_used_at                *time.Time
@@ -3131,6 +3132,55 @@ func (m *AccountMutation) ResetRateMultiplier() {
 	m.addrate_multiplier = nil
 }
 
+// SetUpstreamGroup sets the "upstream_group" field.
+func (m *AccountMutation) SetUpstreamGroup(s string) {
+	m.upstream_group = &s
+}
+
+// UpstreamGroup returns the value of the "upstream_group" field in the mutation.
+func (m *AccountMutation) UpstreamGroup() (r string, exists bool) {
+	v := m.upstream_group
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpstreamGroup returns the old "upstream_group" field's value of the Account entity.
+// If the Account object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AccountMutation) OldUpstreamGroup(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpstreamGroup is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpstreamGroup requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpstreamGroup: %w", err)
+	}
+	return oldValue.UpstreamGroup, nil
+}
+
+// ClearUpstreamGroup clears the value of the "upstream_group" field.
+func (m *AccountMutation) ClearUpstreamGroup() {
+	m.upstream_group = nil
+	m.clearedFields[account.FieldUpstreamGroup] = struct{}{}
+}
+
+// UpstreamGroupCleared returns if the "upstream_group" field was cleared in this mutation.
+func (m *AccountMutation) UpstreamGroupCleared() bool {
+	_, ok := m.clearedFields[account.FieldUpstreamGroup]
+	return ok
+}
+
+// ResetUpstreamGroup resets all changes to the "upstream_group" field.
+func (m *AccountMutation) ResetUpstreamGroup() {
+	m.upstream_group = nil
+	delete(m.clearedFields, account.FieldUpstreamGroup)
+}
+
 // SetStatus sets the "status" field.
 func (m *AccountMutation) SetStatus(s string) {
 	m.status = &s
@@ -3947,7 +3997,7 @@ func (m *AccountMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *AccountMutation) Fields() []string {
-	fields := make([]string, 0, 29)
+	fields := make([]string, 0, 30)
 	if m.created_at != nil {
 		fields = append(fields, account.FieldCreatedAt)
 	}
@@ -3992,6 +4042,9 @@ func (m *AccountMutation) Fields() []string {
 	}
 	if m.rate_multiplier != nil {
 		fields = append(fields, account.FieldRateMultiplier)
+	}
+	if m.upstream_group != nil {
+		fields = append(fields, account.FieldUpstreamGroup)
 	}
 	if m.status != nil {
 		fields = append(fields, account.FieldStatus)
@@ -4073,6 +4126,8 @@ func (m *AccountMutation) Field(name string) (ent.Value, bool) {
 		return m.Priority()
 	case account.FieldRateMultiplier:
 		return m.RateMultiplier()
+	case account.FieldUpstreamGroup:
+		return m.UpstreamGroup()
 	case account.FieldStatus:
 		return m.Status()
 	case account.FieldErrorMessage:
@@ -4140,6 +4195,8 @@ func (m *AccountMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldPriority(ctx)
 	case account.FieldRateMultiplier:
 		return m.OldRateMultiplier(ctx)
+	case account.FieldUpstreamGroup:
+		return m.OldUpstreamGroup(ctx)
 	case account.FieldStatus:
 		return m.OldStatus(ctx)
 	case account.FieldErrorMessage:
@@ -4281,6 +4338,13 @@ func (m *AccountMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetRateMultiplier(v)
+		return nil
+	case account.FieldUpstreamGroup:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpstreamGroup(v)
 		return nil
 	case account.FieldStatus:
 		v, ok := value.(string)
@@ -4488,6 +4552,9 @@ func (m *AccountMutation) ClearedFields() []string {
 	if m.FieldCleared(account.FieldLoadFactor) {
 		fields = append(fields, account.FieldLoadFactor)
 	}
+	if m.FieldCleared(account.FieldUpstreamGroup) {
+		fields = append(fields, account.FieldUpstreamGroup)
+	}
 	if m.FieldCleared(account.FieldErrorMessage) {
 		fields = append(fields, account.FieldErrorMessage)
 	}
@@ -4549,6 +4616,9 @@ func (m *AccountMutation) ClearField(name string) error {
 		return nil
 	case account.FieldLoadFactor:
 		m.ClearLoadFactor()
+		return nil
+	case account.FieldUpstreamGroup:
+		m.ClearUpstreamGroup()
 		return nil
 	case account.FieldErrorMessage:
 		m.ClearErrorMessage()
@@ -4635,6 +4705,9 @@ func (m *AccountMutation) ResetField(name string) error {
 		return nil
 	case account.FieldRateMultiplier:
 		m.ResetRateMultiplier()
+		return nil
+	case account.FieldUpstreamGroup:
+		m.ResetUpstreamGroup()
 		return nil
 	case account.FieldStatus:
 		m.ResetStatus()
@@ -13728,28 +13801,30 @@ func (m *ChannelMonitorRequestTemplateMutation) ResetEdge(name string) error {
 // ChannelProviderMutation represents an operation that mutates the ChannelProvider nodes in the graph.
 type ChannelProviderMutation struct {
 	config
-	op                 Op
-	typ                string
-	id                 *int64
-	created_at         *time.Time
-	updated_at         *time.Time
-	base_url           *string
-	display_name       *string
-	recharge_amount    *float64
-	addrecharge_amount *float64
-	quota_per_unit     *int64
-	addquota_per_unit  *int64
-	balance            *float64
-	addbalance         *float64
-	balance_unit       *string
-	balance_checked_at *time.Time
-	is_valid           *bool
-	sync_balance       *bool
-	last_refresh_error *string
-	clearedFields      map[string]struct{}
-	done               bool
-	oldValue           func(context.Context) (*ChannelProvider, error)
-	predicates         []predicate.ChannelProvider
+	op                     Op
+	typ                    string
+	id                     *int64
+	created_at             *time.Time
+	updated_at             *time.Time
+	base_url               *string
+	display_name           *string
+	recharge_amount        *float64
+	addrecharge_amount     *float64
+	quota_per_unit         *int64
+	addquota_per_unit      *int64
+	balance                *float64
+	addbalance             *float64
+	balance_unit           *string
+	balance_checked_at     *time.Time
+	is_valid               *bool
+	sync_balance           *bool
+	last_refresh_error     *string
+	group_ratio            *map[string]float64
+	group_ratio_checked_at *time.Time
+	clearedFields          map[string]struct{}
+	done                   bool
+	oldValue               func(context.Context) (*ChannelProvider, error)
+	predicates             []predicate.ChannelProvider
 }
 
 var _ ent.Mutation = (*ChannelProviderMutation)(nil)
@@ -14395,6 +14470,104 @@ func (m *ChannelProviderMutation) ResetLastRefreshError() {
 	delete(m.clearedFields, channelprovider.FieldLastRefreshError)
 }
 
+// SetGroupRatio sets the "group_ratio" field.
+func (m *ChannelProviderMutation) SetGroupRatio(value map[string]float64) {
+	m.group_ratio = &value
+}
+
+// GroupRatio returns the value of the "group_ratio" field in the mutation.
+func (m *ChannelProviderMutation) GroupRatio() (r map[string]float64, exists bool) {
+	v := m.group_ratio
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGroupRatio returns the old "group_ratio" field's value of the ChannelProvider entity.
+// If the ChannelProvider object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelProviderMutation) OldGroupRatio(ctx context.Context) (v map[string]float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGroupRatio is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGroupRatio requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGroupRatio: %w", err)
+	}
+	return oldValue.GroupRatio, nil
+}
+
+// ClearGroupRatio clears the value of the "group_ratio" field.
+func (m *ChannelProviderMutation) ClearGroupRatio() {
+	m.group_ratio = nil
+	m.clearedFields[channelprovider.FieldGroupRatio] = struct{}{}
+}
+
+// GroupRatioCleared returns if the "group_ratio" field was cleared in this mutation.
+func (m *ChannelProviderMutation) GroupRatioCleared() bool {
+	_, ok := m.clearedFields[channelprovider.FieldGroupRatio]
+	return ok
+}
+
+// ResetGroupRatio resets all changes to the "group_ratio" field.
+func (m *ChannelProviderMutation) ResetGroupRatio() {
+	m.group_ratio = nil
+	delete(m.clearedFields, channelprovider.FieldGroupRatio)
+}
+
+// SetGroupRatioCheckedAt sets the "group_ratio_checked_at" field.
+func (m *ChannelProviderMutation) SetGroupRatioCheckedAt(t time.Time) {
+	m.group_ratio_checked_at = &t
+}
+
+// GroupRatioCheckedAt returns the value of the "group_ratio_checked_at" field in the mutation.
+func (m *ChannelProviderMutation) GroupRatioCheckedAt() (r time.Time, exists bool) {
+	v := m.group_ratio_checked_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGroupRatioCheckedAt returns the old "group_ratio_checked_at" field's value of the ChannelProvider entity.
+// If the ChannelProvider object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ChannelProviderMutation) OldGroupRatioCheckedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGroupRatioCheckedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGroupRatioCheckedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGroupRatioCheckedAt: %w", err)
+	}
+	return oldValue.GroupRatioCheckedAt, nil
+}
+
+// ClearGroupRatioCheckedAt clears the value of the "group_ratio_checked_at" field.
+func (m *ChannelProviderMutation) ClearGroupRatioCheckedAt() {
+	m.group_ratio_checked_at = nil
+	m.clearedFields[channelprovider.FieldGroupRatioCheckedAt] = struct{}{}
+}
+
+// GroupRatioCheckedAtCleared returns if the "group_ratio_checked_at" field was cleared in this mutation.
+func (m *ChannelProviderMutation) GroupRatioCheckedAtCleared() bool {
+	_, ok := m.clearedFields[channelprovider.FieldGroupRatioCheckedAt]
+	return ok
+}
+
+// ResetGroupRatioCheckedAt resets all changes to the "group_ratio_checked_at" field.
+func (m *ChannelProviderMutation) ResetGroupRatioCheckedAt() {
+	m.group_ratio_checked_at = nil
+	delete(m.clearedFields, channelprovider.FieldGroupRatioCheckedAt)
+}
+
 // Where appends a list predicates to the ChannelProviderMutation builder.
 func (m *ChannelProviderMutation) Where(ps ...predicate.ChannelProvider) {
 	m.predicates = append(m.predicates, ps...)
@@ -14429,7 +14602,7 @@ func (m *ChannelProviderMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ChannelProviderMutation) Fields() []string {
-	fields := make([]string, 0, 12)
+	fields := make([]string, 0, 14)
 	if m.created_at != nil {
 		fields = append(fields, channelprovider.FieldCreatedAt)
 	}
@@ -14466,6 +14639,12 @@ func (m *ChannelProviderMutation) Fields() []string {
 	if m.last_refresh_error != nil {
 		fields = append(fields, channelprovider.FieldLastRefreshError)
 	}
+	if m.group_ratio != nil {
+		fields = append(fields, channelprovider.FieldGroupRatio)
+	}
+	if m.group_ratio_checked_at != nil {
+		fields = append(fields, channelprovider.FieldGroupRatioCheckedAt)
+	}
 	return fields
 }
 
@@ -14498,6 +14677,10 @@ func (m *ChannelProviderMutation) Field(name string) (ent.Value, bool) {
 		return m.SyncBalance()
 	case channelprovider.FieldLastRefreshError:
 		return m.LastRefreshError()
+	case channelprovider.FieldGroupRatio:
+		return m.GroupRatio()
+	case channelprovider.FieldGroupRatioCheckedAt:
+		return m.GroupRatioCheckedAt()
 	}
 	return nil, false
 }
@@ -14531,6 +14714,10 @@ func (m *ChannelProviderMutation) OldField(ctx context.Context, name string) (en
 		return m.OldSyncBalance(ctx)
 	case channelprovider.FieldLastRefreshError:
 		return m.OldLastRefreshError(ctx)
+	case channelprovider.FieldGroupRatio:
+		return m.OldGroupRatio(ctx)
+	case channelprovider.FieldGroupRatioCheckedAt:
+		return m.OldGroupRatioCheckedAt(ctx)
 	}
 	return nil, fmt.Errorf("unknown ChannelProvider field %s", name)
 }
@@ -14624,6 +14811,20 @@ func (m *ChannelProviderMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetLastRefreshError(v)
 		return nil
+	case channelprovider.FieldGroupRatio:
+		v, ok := value.(map[string]float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGroupRatio(v)
+		return nil
+	case channelprovider.FieldGroupRatioCheckedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGroupRatioCheckedAt(v)
+		return nil
 	}
 	return fmt.Errorf("unknown ChannelProvider field %s", name)
 }
@@ -14705,6 +14906,12 @@ func (m *ChannelProviderMutation) ClearedFields() []string {
 	if m.FieldCleared(channelprovider.FieldLastRefreshError) {
 		fields = append(fields, channelprovider.FieldLastRefreshError)
 	}
+	if m.FieldCleared(channelprovider.FieldGroupRatio) {
+		fields = append(fields, channelprovider.FieldGroupRatio)
+	}
+	if m.FieldCleared(channelprovider.FieldGroupRatioCheckedAt) {
+		fields = append(fields, channelprovider.FieldGroupRatioCheckedAt)
+	}
 	return fields
 }
 
@@ -14730,6 +14937,12 @@ func (m *ChannelProviderMutation) ClearField(name string) error {
 		return nil
 	case channelprovider.FieldLastRefreshError:
 		m.ClearLastRefreshError()
+		return nil
+	case channelprovider.FieldGroupRatio:
+		m.ClearGroupRatio()
+		return nil
+	case channelprovider.FieldGroupRatioCheckedAt:
+		m.ClearGroupRatioCheckedAt()
 		return nil
 	}
 	return fmt.Errorf("unknown ChannelProvider nullable field %s", name)
@@ -14774,6 +14987,12 @@ func (m *ChannelProviderMutation) ResetField(name string) error {
 		return nil
 	case channelprovider.FieldLastRefreshError:
 		m.ResetLastRefreshError()
+		return nil
+	case channelprovider.FieldGroupRatio:
+		m.ResetGroupRatio()
+		return nil
+	case channelprovider.FieldGroupRatioCheckedAt:
+		m.ResetGroupRatioCheckedAt()
 		return nil
 	}
 	return fmt.Errorf("unknown ChannelProvider field %s", name)

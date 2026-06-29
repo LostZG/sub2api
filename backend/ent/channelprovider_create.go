@@ -182,6 +182,26 @@ func (_c *ChannelProviderCreate) SetNillableLastRefreshError(v *string) *Channel
 	return _c
 }
 
+// SetGroupRatio sets the "group_ratio" field.
+func (_c *ChannelProviderCreate) SetGroupRatio(v map[string]float64) *ChannelProviderCreate {
+	_c.mutation.SetGroupRatio(v)
+	return _c
+}
+
+// SetGroupRatioCheckedAt sets the "group_ratio_checked_at" field.
+func (_c *ChannelProviderCreate) SetGroupRatioCheckedAt(v time.Time) *ChannelProviderCreate {
+	_c.mutation.SetGroupRatioCheckedAt(v)
+	return _c
+}
+
+// SetNillableGroupRatioCheckedAt sets the "group_ratio_checked_at" field if the given value is not nil.
+func (_c *ChannelProviderCreate) SetNillableGroupRatioCheckedAt(v *time.Time) *ChannelProviderCreate {
+	if v != nil {
+		_c.SetGroupRatioCheckedAt(*v)
+	}
+	return _c
+}
+
 // Mutation returns the ChannelProviderMutation object of the builder.
 func (_c *ChannelProviderCreate) Mutation() *ChannelProviderMutation {
 	return _c.mutation
@@ -362,6 +382,14 @@ func (_c *ChannelProviderCreate) createSpec() (*ChannelProvider, *sqlgraph.Creat
 	if value, ok := _c.mutation.LastRefreshError(); ok {
 		_spec.SetField(channelprovider.FieldLastRefreshError, field.TypeString, value)
 		_node.LastRefreshError = &value
+	}
+	if value, ok := _c.mutation.GroupRatio(); ok {
+		_spec.SetField(channelprovider.FieldGroupRatio, field.TypeJSON, value)
+		_node.GroupRatio = value
+	}
+	if value, ok := _c.mutation.GroupRatioCheckedAt(); ok {
+		_spec.SetField(channelprovider.FieldGroupRatioCheckedAt, field.TypeTime, value)
+		_node.GroupRatioCheckedAt = &value
 	}
 	return _node, _spec
 }
@@ -586,6 +614,42 @@ func (u *ChannelProviderUpsert) UpdateLastRefreshError() *ChannelProviderUpsert 
 // ClearLastRefreshError clears the value of the "last_refresh_error" field.
 func (u *ChannelProviderUpsert) ClearLastRefreshError() *ChannelProviderUpsert {
 	u.SetNull(channelprovider.FieldLastRefreshError)
+	return u
+}
+
+// SetGroupRatio sets the "group_ratio" field.
+func (u *ChannelProviderUpsert) SetGroupRatio(v map[string]float64) *ChannelProviderUpsert {
+	u.Set(channelprovider.FieldGroupRatio, v)
+	return u
+}
+
+// UpdateGroupRatio sets the "group_ratio" field to the value that was provided on create.
+func (u *ChannelProviderUpsert) UpdateGroupRatio() *ChannelProviderUpsert {
+	u.SetExcluded(channelprovider.FieldGroupRatio)
+	return u
+}
+
+// ClearGroupRatio clears the value of the "group_ratio" field.
+func (u *ChannelProviderUpsert) ClearGroupRatio() *ChannelProviderUpsert {
+	u.SetNull(channelprovider.FieldGroupRatio)
+	return u
+}
+
+// SetGroupRatioCheckedAt sets the "group_ratio_checked_at" field.
+func (u *ChannelProviderUpsert) SetGroupRatioCheckedAt(v time.Time) *ChannelProviderUpsert {
+	u.Set(channelprovider.FieldGroupRatioCheckedAt, v)
+	return u
+}
+
+// UpdateGroupRatioCheckedAt sets the "group_ratio_checked_at" field to the value that was provided on create.
+func (u *ChannelProviderUpsert) UpdateGroupRatioCheckedAt() *ChannelProviderUpsert {
+	u.SetExcluded(channelprovider.FieldGroupRatioCheckedAt)
+	return u
+}
+
+// ClearGroupRatioCheckedAt clears the value of the "group_ratio_checked_at" field.
+func (u *ChannelProviderUpsert) ClearGroupRatioCheckedAt() *ChannelProviderUpsert {
+	u.SetNull(channelprovider.FieldGroupRatioCheckedAt)
 	return u
 }
 
@@ -834,6 +898,48 @@ func (u *ChannelProviderUpsertOne) UpdateLastRefreshError() *ChannelProviderUpse
 func (u *ChannelProviderUpsertOne) ClearLastRefreshError() *ChannelProviderUpsertOne {
 	return u.Update(func(s *ChannelProviderUpsert) {
 		s.ClearLastRefreshError()
+	})
+}
+
+// SetGroupRatio sets the "group_ratio" field.
+func (u *ChannelProviderUpsertOne) SetGroupRatio(v map[string]float64) *ChannelProviderUpsertOne {
+	return u.Update(func(s *ChannelProviderUpsert) {
+		s.SetGroupRatio(v)
+	})
+}
+
+// UpdateGroupRatio sets the "group_ratio" field to the value that was provided on create.
+func (u *ChannelProviderUpsertOne) UpdateGroupRatio() *ChannelProviderUpsertOne {
+	return u.Update(func(s *ChannelProviderUpsert) {
+		s.UpdateGroupRatio()
+	})
+}
+
+// ClearGroupRatio clears the value of the "group_ratio" field.
+func (u *ChannelProviderUpsertOne) ClearGroupRatio() *ChannelProviderUpsertOne {
+	return u.Update(func(s *ChannelProviderUpsert) {
+		s.ClearGroupRatio()
+	})
+}
+
+// SetGroupRatioCheckedAt sets the "group_ratio_checked_at" field.
+func (u *ChannelProviderUpsertOne) SetGroupRatioCheckedAt(v time.Time) *ChannelProviderUpsertOne {
+	return u.Update(func(s *ChannelProviderUpsert) {
+		s.SetGroupRatioCheckedAt(v)
+	})
+}
+
+// UpdateGroupRatioCheckedAt sets the "group_ratio_checked_at" field to the value that was provided on create.
+func (u *ChannelProviderUpsertOne) UpdateGroupRatioCheckedAt() *ChannelProviderUpsertOne {
+	return u.Update(func(s *ChannelProviderUpsert) {
+		s.UpdateGroupRatioCheckedAt()
+	})
+}
+
+// ClearGroupRatioCheckedAt clears the value of the "group_ratio_checked_at" field.
+func (u *ChannelProviderUpsertOne) ClearGroupRatioCheckedAt() *ChannelProviderUpsertOne {
+	return u.Update(func(s *ChannelProviderUpsert) {
+		s.ClearGroupRatioCheckedAt()
 	})
 }
 
@@ -1248,6 +1354,48 @@ func (u *ChannelProviderUpsertBulk) UpdateLastRefreshError() *ChannelProviderUps
 func (u *ChannelProviderUpsertBulk) ClearLastRefreshError() *ChannelProviderUpsertBulk {
 	return u.Update(func(s *ChannelProviderUpsert) {
 		s.ClearLastRefreshError()
+	})
+}
+
+// SetGroupRatio sets the "group_ratio" field.
+func (u *ChannelProviderUpsertBulk) SetGroupRatio(v map[string]float64) *ChannelProviderUpsertBulk {
+	return u.Update(func(s *ChannelProviderUpsert) {
+		s.SetGroupRatio(v)
+	})
+}
+
+// UpdateGroupRatio sets the "group_ratio" field to the value that was provided on create.
+func (u *ChannelProviderUpsertBulk) UpdateGroupRatio() *ChannelProviderUpsertBulk {
+	return u.Update(func(s *ChannelProviderUpsert) {
+		s.UpdateGroupRatio()
+	})
+}
+
+// ClearGroupRatio clears the value of the "group_ratio" field.
+func (u *ChannelProviderUpsertBulk) ClearGroupRatio() *ChannelProviderUpsertBulk {
+	return u.Update(func(s *ChannelProviderUpsert) {
+		s.ClearGroupRatio()
+	})
+}
+
+// SetGroupRatioCheckedAt sets the "group_ratio_checked_at" field.
+func (u *ChannelProviderUpsertBulk) SetGroupRatioCheckedAt(v time.Time) *ChannelProviderUpsertBulk {
+	return u.Update(func(s *ChannelProviderUpsert) {
+		s.SetGroupRatioCheckedAt(v)
+	})
+}
+
+// UpdateGroupRatioCheckedAt sets the "group_ratio_checked_at" field to the value that was provided on create.
+func (u *ChannelProviderUpsertBulk) UpdateGroupRatioCheckedAt() *ChannelProviderUpsertBulk {
+	return u.Update(func(s *ChannelProviderUpsert) {
+		s.UpdateGroupRatioCheckedAt()
+	})
+}
+
+// ClearGroupRatioCheckedAt clears the value of the "group_ratio_checked_at" field.
+func (u *ChannelProviderUpsertBulk) ClearGroupRatioCheckedAt() *ChannelProviderUpsertBulk {
+	return u.Update(func(s *ChannelProviderUpsert) {
+		s.ClearGroupRatioCheckedAt()
 	})
 }
 

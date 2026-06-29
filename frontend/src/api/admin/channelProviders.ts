@@ -4,6 +4,7 @@
  */
 
 import { apiClient } from '../client'
+import type { ProviderAccountBrief } from '@/types'
 
 export interface ChannelProvider {
   id: number
@@ -17,8 +18,16 @@ export interface ChannelProvider {
   is_valid: boolean
   sync_balance: boolean
   last_refresh_error: string
+  group_ratio?: Record<string, number>
+  group_ratio_checked_at?: string
   account_count: number
   updated_at: string
+}
+
+export interface ProviderAccountsResponse {
+  accounts: ProviderAccountBrief[]
+  group_ratio: Record<string, number>
+  group_ratio_checked_at: string
 }
 
 export interface RefreshResult {
@@ -83,5 +92,35 @@ export async function refreshAllBalances(): Promise<RefreshResult[]> {
   return data ?? []
 }
 
-const channelProvidersAPI = { list, updateProvider, setSyncBalance, refreshBalance, refreshAllBalances }
+/**
+ * 拉取某渠道商下所有账号摘要 + 分组倍率缓存（不含 credentials）
+ */
+export async function listAccounts(baseURL: string): Promise<ProviderAccountsResponse> {
+  const { data } = await apiClient.get<ProviderAccountsResponse>('/admin/channel-providers/accounts', {
+    params: { base_url: baseURL }
+  })
+  return data ?? { accounts: [], group_ratio: {}, group_ratio_checked_at: '' }
+}
+
+/**
+ * 刷新上游 NewAPI 分组倍率（/api/pricing），返回更新后的渠道商
+ */
+export async function refreshGroupRatio(baseURL: string): Promise<ChannelProvider> {
+  const { data } = await apiClient.post<ChannelProvider>(
+    '/admin/channel-providers/refresh-group-ratio',
+    { base_url: baseURL },
+    { timeout: 30000 }
+  )
+  return data
+}
+
+const channelProvidersAPI = {
+  list,
+  updateProvider,
+  setSyncBalance,
+  refreshBalance,
+  refreshAllBalances,
+  listAccounts,
+  refreshGroupRatio
+}
 export default channelProvidersAPI

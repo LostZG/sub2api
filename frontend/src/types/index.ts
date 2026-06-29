@@ -842,6 +842,7 @@ export interface Account {
   current_concurrency?: number // Real-time concurrency count from Redis
   priority: number
   rate_multiplier?: number // Account billing multiplier (>=0, 0 means free)
+  upstream_group?: string | null // 上游 NewAPI 分组名，结合渠道商 group_ratio 查最新倍率
   status: 'active' | 'inactive' | 'error'
   error_message: string | null
   last_used_at: string | null
@@ -1033,6 +1034,7 @@ export interface CreateAccountRequest {
   load_factor?: number | null
   priority?: number
   rate_multiplier?: number // Account billing multiplier (>=0, 0 means free)
+  upstream_group?: string | null // 上游 NewAPI 分组名
   group_ids?: number[]
   expires_at?: number | null
   auto_pause_on_expired?: boolean
@@ -1050,6 +1052,7 @@ export interface UpdateAccountRequest {
   load_factor?: number | null
   priority?: number
   rate_multiplier?: number // Account billing multiplier (>=0, 0 means free)
+  upstream_group?: string | null // 上游 NewAPI 分组名
   schedulable?: boolean
   status?: 'active' | 'inactive' | 'error'
   group_ids?: number[]
@@ -1062,6 +1065,18 @@ export interface CheckMixedChannelRequest {
   platform: AccountPlatform
   group_ids: number[]
   account_id?: number
+}
+
+// 渠道号商弹框展示的账号摘要（不含 credentials）
+export interface ProviderAccountBrief {
+  id: number
+  name: string
+  platform: string
+  status: string
+  priority: number
+  rate_multiplier: number
+  last_used_at: string
+  upstream_group: string
 }
 
 export interface MixedChannelWarningDetails {

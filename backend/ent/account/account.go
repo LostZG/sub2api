@@ -45,6 +45,8 @@ const (
 	FieldPriority = "priority"
 	// FieldRateMultiplier holds the string denoting the rate_multiplier field in the database.
 	FieldRateMultiplier = "rate_multiplier"
+	// FieldUpstreamGroup holds the string denoting the upstream_group field in the database.
+	FieldUpstreamGroup = "upstream_group"
 	// FieldStatus holds the string denoting the status field in the database.
 	FieldStatus = "status"
 	// FieldErrorMessage holds the string denoting the error_message field in the database.
@@ -129,6 +131,7 @@ var Columns = []string{
 	FieldLoadFactor,
 	FieldPriority,
 	FieldRateMultiplier,
+	FieldUpstreamGroup,
 	FieldStatus,
 	FieldErrorMessage,
 	FieldLastUsedAt,
@@ -191,6 +194,8 @@ var (
 	DefaultPriority int
 	// DefaultRateMultiplier holds the default value on creation for the "rate_multiplier" field.
 	DefaultRateMultiplier float64
+	// UpstreamGroupValidator is a validator for the "upstream_group" field. It is called by the builders before save.
+	UpstreamGroupValidator func(string) error
 	// DefaultStatus holds the default value on creation for the "status" field.
 	DefaultStatus string
 	// StatusValidator is a validator for the "status" field. It is called by the builders before save.
@@ -274,6 +279,11 @@ func ByPriority(opts ...sql.OrderTermOption) OrderOption {
 // ByRateMultiplier orders the results by the rate_multiplier field.
 func ByRateMultiplier(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRateMultiplier, opts...).ToFunc()
+}
+
+// ByUpstreamGroup orders the results by the upstream_group field.
+func ByUpstreamGroup(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldUpstreamGroup, opts...).ToFunc()
 }
 
 // ByStatus orders the results by the status field.

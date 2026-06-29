@@ -629,10 +629,12 @@ func registerChannelProviderRoutes(admin *gin.RouterGroup, h *handler.Handlers) 
 	providers := admin.Group("/channel-providers")
 	{
 		providers.GET("", h.Admin.ChannelProvider.List)
+		providers.GET("/accounts", h.Admin.ChannelProvider.ListAccounts)
 		providers.PUT("/recharge", h.Admin.ChannelProvider.UpdateProvider)
 		providers.POST("/sync-toggle", h.Admin.ChannelProvider.SetSyncBalance)
 		providers.POST("/refresh", h.Admin.ChannelProvider.Refresh)
 		providers.POST("/refresh-all", h.Admin.ChannelProvider.RefreshAll)
+		providers.POST("/refresh-group-ratio", h.Admin.ChannelProvider.RefreshGroupRatio)
 	}
 }
 

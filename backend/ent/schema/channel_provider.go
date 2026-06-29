@@ -101,6 +101,18 @@ func (ChannelProvider) Fields() []ent.Field {
 			Optional().
 			Nillable().
 			SchemaType(map[string]string{dialect.Postgres: "text"}),
+
+		// group_ratio: 上游 NewAPI /api/pricing 返回的分组倍率映射（group → ratio）。
+		// 账号的 upstream_group 字段作为 key 查此映射得到"最新倍率"。可为空（未刷新过）。
+		field.JSON("group_ratio", map[string]float64{}).
+			Optional().
+			SchemaType(map[string]string{dialect.Postgres: "jsonb"}),
+
+		// group_ratio_checked_at: 最近一次刷新分组倍率的时间
+		field.Time("group_ratio_checked_at").
+			Optional().
+			Nillable().
+			SchemaType(map[string]string{dialect.Postgres: "timestamptz"}),
 	}
 }
 

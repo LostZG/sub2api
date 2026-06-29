@@ -37,6 +37,10 @@ const (
 	FieldSyncBalance = "sync_balance"
 	// FieldLastRefreshError holds the string denoting the last_refresh_error field in the database.
 	FieldLastRefreshError = "last_refresh_error"
+	// FieldGroupRatio holds the string denoting the group_ratio field in the database.
+	FieldGroupRatio = "group_ratio"
+	// FieldGroupRatioCheckedAt holds the string denoting the group_ratio_checked_at field in the database.
+	FieldGroupRatioCheckedAt = "group_ratio_checked_at"
 	// Table holds the table name of the channelprovider in the database.
 	Table = "channel_providers"
 )
@@ -56,6 +60,8 @@ var Columns = []string{
 	FieldIsValid,
 	FieldSyncBalance,
 	FieldLastRefreshError,
+	FieldGroupRatio,
+	FieldGroupRatioCheckedAt,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -159,4 +165,9 @@ func BySyncBalance(opts ...sql.OrderTermOption) OrderOption {
 // ByLastRefreshError orders the results by the last_refresh_error field.
 func ByLastRefreshError(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldLastRefreshError, opts...).ToFunc()
+}
+
+// ByGroupRatioCheckedAt orders the results by the group_ratio_checked_at field.
+func ByGroupRatioCheckedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGroupRatioCheckedAt, opts...).ToFunc()
 }

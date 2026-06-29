@@ -103,6 +103,9 @@ func (r *accountRepository) Create(ctx context.Context, account *service.Account
 	if account.LoadFactor != nil {
 		builder.SetLoadFactor(*account.LoadFactor)
 	}
+	if account.UpstreamGroup != nil {
+		builder.SetUpstreamGroup(*account.UpstreamGroup)
+	}
 
 	if account.ProxyID != nil {
 		builder.SetProxyID(*account.ProxyID)
@@ -345,6 +348,11 @@ func (r *accountRepository) Update(ctx context.Context, account *service.Account
 		builder.SetLoadFactor(*account.LoadFactor)
 	} else {
 		builder.ClearLoadFactor()
+	}
+	if account.UpstreamGroup != nil {
+		builder.SetUpstreamGroup(*account.UpstreamGroup)
+	} else {
+		builder.ClearUpstreamGroup()
 	}
 
 	if account.ProxyID != nil {
@@ -1914,6 +1922,7 @@ func accountEntityToService(m *dbent.Account) *service.Account {
 		Priority:                m.Priority,
 		RateMultiplier:          &rateMultiplier,
 		LoadFactor:              m.LoadFactor,
+		UpstreamGroup:           m.UpstreamGroup,
 		Status:                  m.Status,
 		ErrorMessage:            derefString(m.ErrorMessage),
 		LastUsedAt:              m.LastUsedAt,

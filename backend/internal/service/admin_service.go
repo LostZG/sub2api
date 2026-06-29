@@ -287,6 +287,7 @@ type CreateAccountInput struct {
 	Priority           int
 	RateMultiplier     *float64 // 账号计费倍率（>=0，允许 0）
 	LoadFactor         *int
+	UpstreamGroup      *string // 上游 NewAPI 分组名，用于结合 group_ratio 查最新倍率
 	GroupIDs           []int64
 	ExpiresAt          *int64
 	AutoPauseOnExpired *bool
@@ -308,6 +309,7 @@ type UpdateAccountInput struct {
 	Priority              *int     // 使用指针区分"未提供"和"设置为0"
 	RateMultiplier        *float64 // 账号计费倍率（>=0，允许 0）
 	LoadFactor            *int
+	UpstreamGroup         *string // 上游 NewAPI 分组名；nil 表示不改动，非 nil（含空串）覆盖
 	Status                string
 	GroupIDs              *[]int64
 	ExpiresAt             *int64
@@ -2635,6 +2637,14 @@ func (s *adminServiceImpl) CreateAccount(ctx context.Context, input *CreateAccou
 		}
 		account.LoadFactor = input.LoadFactor
 	}
+	if input.UpstreamGroup != nil {
+		grp := strings.TrimSpace(*input.UpstreamGroup)
+		if grp == "" {
+			account.UpstreamGroup = nil
+		} else {
+			account.UpstreamGroup = &grp
+		}
+	}
 	if err := s.accountRepo.Create(ctx, account); err != nil {
 		return nil, err
 	}
@@ -2753,6 +2763,14 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 			return nil, errors.New("load_factor must be <= 10000")
 		} else {
 			account.LoadFactor = input.LoadFactor
+		}
+	}
+	if input.UpstreamGroup != nil {
+		grp := strings.TrimSpace(*input.UpstreamGroup)
+		if grp == "" {
+			account.UpstreamGroup = nil
+		} else {
+			account.UpstreamGroup = &grp
 		}
 	}
 	if input.Status != "" {

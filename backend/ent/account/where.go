@@ -120,6 +120,11 @@ func RateMultiplier(v float64) predicate.Account {
 	return predicate.Account(sql.FieldEQ(FieldRateMultiplier, v))
 }
 
+// UpstreamGroup applies equality check predicate on the "upstream_group" field. It's identical to UpstreamGroupEQ.
+func UpstreamGroup(v string) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldUpstreamGroup, v))
+}
+
 // Status applies equality check predicate on the "status" field. It's identical to StatusEQ.
 func Status(v string) predicate.Account {
 	return predicate.Account(sql.FieldEQ(FieldStatus, v))
@@ -838,6 +843,81 @@ func RateMultiplierLT(v float64) predicate.Account {
 // RateMultiplierLTE applies the LTE predicate on the "rate_multiplier" field.
 func RateMultiplierLTE(v float64) predicate.Account {
 	return predicate.Account(sql.FieldLTE(FieldRateMultiplier, v))
+}
+
+// UpstreamGroupEQ applies the EQ predicate on the "upstream_group" field.
+func UpstreamGroupEQ(v string) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldUpstreamGroup, v))
+}
+
+// UpstreamGroupNEQ applies the NEQ predicate on the "upstream_group" field.
+func UpstreamGroupNEQ(v string) predicate.Account {
+	return predicate.Account(sql.FieldNEQ(FieldUpstreamGroup, v))
+}
+
+// UpstreamGroupIn applies the In predicate on the "upstream_group" field.
+func UpstreamGroupIn(vs ...string) predicate.Account {
+	return predicate.Account(sql.FieldIn(FieldUpstreamGroup, vs...))
+}
+
+// UpstreamGroupNotIn applies the NotIn predicate on the "upstream_group" field.
+func UpstreamGroupNotIn(vs ...string) predicate.Account {
+	return predicate.Account(sql.FieldNotIn(FieldUpstreamGroup, vs...))
+}
+
+// UpstreamGroupGT applies the GT predicate on the "upstream_group" field.
+func UpstreamGroupGT(v string) predicate.Account {
+	return predicate.Account(sql.FieldGT(FieldUpstreamGroup, v))
+}
+
+// UpstreamGroupGTE applies the GTE predicate on the "upstream_group" field.
+func UpstreamGroupGTE(v string) predicate.Account {
+	return predicate.Account(sql.FieldGTE(FieldUpstreamGroup, v))
+}
+
+// UpstreamGroupLT applies the LT predicate on the "upstream_group" field.
+func UpstreamGroupLT(v string) predicate.Account {
+	return predicate.Account(sql.FieldLT(FieldUpstreamGroup, v))
+}
+
+// UpstreamGroupLTE applies the LTE predicate on the "upstream_group" field.
+func UpstreamGroupLTE(v string) predicate.Account {
+	return predicate.Account(sql.FieldLTE(FieldUpstreamGroup, v))
+}
+
+// UpstreamGroupContains applies the Contains predicate on the "upstream_group" field.
+func UpstreamGroupContains(v string) predicate.Account {
+	return predicate.Account(sql.FieldContains(FieldUpstreamGroup, v))
+}
+
+// UpstreamGroupHasPrefix applies the HasPrefix predicate on the "upstream_group" field.
+func UpstreamGroupHasPrefix(v string) predicate.Account {
+	return predicate.Account(sql.FieldHasPrefix(FieldUpstreamGroup, v))
+}
+
+// UpstreamGroupHasSuffix applies the HasSuffix predicate on the "upstream_group" field.
+func UpstreamGroupHasSuffix(v string) predicate.Account {
+	return predicate.Account(sql.FieldHasSuffix(FieldUpstreamGroup, v))
+}
+
+// UpstreamGroupIsNil applies the IsNil predicate on the "upstream_group" field.
+func UpstreamGroupIsNil() predicate.Account {
+	return predicate.Account(sql.FieldIsNull(FieldUpstreamGroup))
+}
+
+// UpstreamGroupNotNil applies the NotNil predicate on the "upstream_group" field.
+func UpstreamGroupNotNil() predicate.Account {
+	return predicate.Account(sql.FieldNotNull(FieldUpstreamGroup))
+}
+
+// UpstreamGroupEqualFold applies the EqualFold predicate on the "upstream_group" field.
+func UpstreamGroupEqualFold(v string) predicate.Account {
+	return predicate.Account(sql.FieldEqualFold(FieldUpstreamGroup, v))
+}
+
+// UpstreamGroupContainsFold applies the ContainsFold predicate on the "upstream_group" field.
+func UpstreamGroupContainsFold(v string) predicate.Account {
+	return predicate.Account(sql.FieldContainsFold(FieldUpstreamGroup, v))
 }
 
 // StatusEQ applies the EQ predicate on the "status" field.

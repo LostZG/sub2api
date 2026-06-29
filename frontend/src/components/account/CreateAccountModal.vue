@@ -2500,6 +2500,20 @@
           <p class="input-hint">{{ t('admin.accounts.billingRateMultiplierHint') }}</p>
         </div>
       </div>
+      <div
+        v-if="(form.type === 'apikey' && form.platform !== 'antigravity') || (form.platform === 'antigravity' && antigravityAccountType === 'upstream')"
+        class="border-t border-gray-200 pt-4 dark:border-dark-600"
+      >
+        <label class="input-label">{{ t('admin.accounts.upstreamGroup') }}</label>
+        <input
+          v-model.trim="form.upstream_group"
+          type="text"
+          maxlength="100"
+          class="input"
+          :placeholder="t('admin.accounts.upstreamGroupPlaceholder')"
+        />
+        <p class="input-hint">{{ t('admin.accounts.upstreamGroupHint') }}</p>
+      </div>
       <div class="border-t border-gray-200 pt-4 dark:border-dark-600">
         <label class="input-label">{{ t('admin.accounts.expiresAt') }}</label>
         <input v-model="expiresAtInput" type="datetime-local" class="input" />
@@ -3692,6 +3706,7 @@ const form = reactive({
   load_factor: null as number | null,
   priority: 1,
   rate_multiplier: 1,
+  upstream_group: '' as string | null,
   group_ids: [] as number[],
   expires_at: null as number | null
 })
@@ -4781,6 +4796,7 @@ const createAccountAndFinish = async (
     load_factor: form.load_factor ?? undefined,
     priority: form.priority,
     rate_multiplier: form.rate_multiplier,
+    upstream_group: form.upstream_group ?? undefined,
     group_ids: form.group_ids,
     expires_at: form.expires_at,
     auto_pause_on_expired: autoPauseOnExpired.value

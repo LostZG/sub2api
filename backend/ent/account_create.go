@@ -195,6 +195,20 @@ func (_c *AccountCreate) SetNillableRateMultiplier(v *float64) *AccountCreate {
 	return _c
 }
 
+// SetUpstreamGroup sets the "upstream_group" field.
+func (_c *AccountCreate) SetUpstreamGroup(v string) *AccountCreate {
+	_c.mutation.SetUpstreamGroup(v)
+	return _c
+}
+
+// SetNillableUpstreamGroup sets the "upstream_group" field if the given value is not nil.
+func (_c *AccountCreate) SetNillableUpstreamGroup(v *string) *AccountCreate {
+	if v != nil {
+		_c.SetUpstreamGroup(*v)
+	}
+	return _c
+}
+
 // SetStatus sets the "status" field.
 func (_c *AccountCreate) SetStatus(v string) *AccountCreate {
 	_c.mutation.SetStatus(v)
@@ -565,6 +579,11 @@ func (_c *AccountCreate) check() error {
 	if _, ok := _c.mutation.RateMultiplier(); !ok {
 		return &ValidationError{Name: "rate_multiplier", err: errors.New(`ent: missing required field "Account.rate_multiplier"`)}
 	}
+	if v, ok := _c.mutation.UpstreamGroup(); ok {
+		if err := account.UpstreamGroupValidator(v); err != nil {
+			return &ValidationError{Name: "upstream_group", err: fmt.Errorf(`ent: validator failed for field "Account.upstream_group": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.Status(); !ok {
 		return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "Account.status"`)}
 	}
@@ -666,6 +685,10 @@ func (_c *AccountCreate) createSpec() (*Account, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.RateMultiplier(); ok {
 		_spec.SetField(account.FieldRateMultiplier, field.TypeFloat64, value)
 		_node.RateMultiplier = value
+	}
+	if value, ok := _c.mutation.UpstreamGroup(); ok {
+		_spec.SetField(account.FieldUpstreamGroup, field.TypeString, value)
+		_node.UpstreamGroup = &value
 	}
 	if value, ok := _c.mutation.Status(); ok {
 		_spec.SetField(account.FieldStatus, field.TypeString, value)
@@ -1053,6 +1076,24 @@ func (u *AccountUpsert) UpdateRateMultiplier() *AccountUpsert {
 // AddRateMultiplier adds v to the "rate_multiplier" field.
 func (u *AccountUpsert) AddRateMultiplier(v float64) *AccountUpsert {
 	u.Add(account.FieldRateMultiplier, v)
+	return u
+}
+
+// SetUpstreamGroup sets the "upstream_group" field.
+func (u *AccountUpsert) SetUpstreamGroup(v string) *AccountUpsert {
+	u.Set(account.FieldUpstreamGroup, v)
+	return u
+}
+
+// UpdateUpstreamGroup sets the "upstream_group" field to the value that was provided on create.
+func (u *AccountUpsert) UpdateUpstreamGroup() *AccountUpsert {
+	u.SetExcluded(account.FieldUpstreamGroup)
+	return u
+}
+
+// ClearUpstreamGroup clears the value of the "upstream_group" field.
+func (u *AccountUpsert) ClearUpstreamGroup() *AccountUpsert {
+	u.SetNull(account.FieldUpstreamGroup)
 	return u
 }
 
@@ -1598,6 +1639,27 @@ func (u *AccountUpsertOne) AddRateMultiplier(v float64) *AccountUpsertOne {
 func (u *AccountUpsertOne) UpdateRateMultiplier() *AccountUpsertOne {
 	return u.Update(func(s *AccountUpsert) {
 		s.UpdateRateMultiplier()
+	})
+}
+
+// SetUpstreamGroup sets the "upstream_group" field.
+func (u *AccountUpsertOne) SetUpstreamGroup(v string) *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetUpstreamGroup(v)
+	})
+}
+
+// UpdateUpstreamGroup sets the "upstream_group" field to the value that was provided on create.
+func (u *AccountUpsertOne) UpdateUpstreamGroup() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateUpstreamGroup()
+	})
+}
+
+// ClearUpstreamGroup clears the value of the "upstream_group" field.
+func (u *AccountUpsertOne) ClearUpstreamGroup() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearUpstreamGroup()
 	})
 }
 
@@ -2348,6 +2410,27 @@ func (u *AccountUpsertBulk) AddRateMultiplier(v float64) *AccountUpsertBulk {
 func (u *AccountUpsertBulk) UpdateRateMultiplier() *AccountUpsertBulk {
 	return u.Update(func(s *AccountUpsert) {
 		s.UpdateRateMultiplier()
+	})
+}
+
+// SetUpstreamGroup sets the "upstream_group" field.
+func (u *AccountUpsertBulk) SetUpstreamGroup(v string) *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetUpstreamGroup(v)
+	})
+}
+
+// UpdateUpstreamGroup sets the "upstream_group" field to the value that was provided on create.
+func (u *AccountUpsertBulk) UpdateUpstreamGroup() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateUpstreamGroup()
+	})
+}
+
+// ClearUpstreamGroup clears the value of the "upstream_group" field.
+func (u *AccountUpsertBulk) ClearUpstreamGroup() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearUpstreamGroup()
 	})
 }
 

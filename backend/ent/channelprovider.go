@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -41,7 +42,11 @@ type ChannelProvider struct {
 	SyncBalance bool `json:"sync_balance,omitempty"`
 	// LastRefreshError holds the value of the "last_refresh_error" field.
 	LastRefreshError *string `json:"last_refresh_error,omitempty"`
-	selectValues     sql.SelectValues
+	// GroupRatio holds the value of the "group_ratio" field.
+	GroupRatio map[string]float64 `json:"group_ratio,omitempty"`
+	// GroupRatioCheckedAt holds the value of the "group_ratio_checked_at" field.
+	GroupRatioCheckedAt *time.Time `json:"group_ratio_checked_at,omitempty"`
+	selectValues        sql.SelectValues
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -49,6 +54,8 @@ func (*ChannelProvider) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case channelprovider.FieldGroupRatio:
+			values[i] = new([]byte)
 		case channelprovider.FieldIsValid, channelprovider.FieldSyncBalance:
 			values[i] = new(sql.NullBool)
 		case channelprovider.FieldRechargeAmount, channelprovider.FieldBalance:
@@ -57,7 +64,7 @@ func (*ChannelProvider) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullInt64)
 		case channelprovider.FieldBaseURL, channelprovider.FieldDisplayName, channelprovider.FieldBalanceUnit, channelprovider.FieldLastRefreshError:
 			values[i] = new(sql.NullString)
-		case channelprovider.FieldCreatedAt, channelprovider.FieldUpdatedAt, channelprovider.FieldBalanceCheckedAt:
+		case channelprovider.FieldCreatedAt, channelprovider.FieldUpdatedAt, channelprovider.FieldBalanceCheckedAt, channelprovider.FieldGroupRatioCheckedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -156,6 +163,21 @@ func (_m *ChannelProvider) assignValues(columns []string, values []any) error {
 				_m.LastRefreshError = new(string)
 				*_m.LastRefreshError = value.String
 			}
+		case channelprovider.FieldGroupRatio:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field group_ratio", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.GroupRatio); err != nil {
+					return fmt.Errorf("unmarshal field group_ratio: %w", err)
+				}
+			}
+		case channelprovider.FieldGroupRatioCheckedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field group_ratio_checked_at", values[i])
+			} else if value.Valid {
+				_m.GroupRatioCheckedAt = new(time.Time)
+				*_m.GroupRatioCheckedAt = value.Time
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -234,6 +256,14 @@ func (_m *ChannelProvider) String() string {
 	if v := _m.LastRefreshError; v != nil {
 		builder.WriteString("last_refresh_error=")
 		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	builder.WriteString("group_ratio=")
+	builder.WriteString(fmt.Sprintf("%v", _m.GroupRatio))
+	builder.WriteString(", ")
+	if v := _m.GroupRatioCheckedAt; v != nil {
+		builder.WriteString("group_ratio_checked_at=")
+		builder.WriteString(v.Format(time.ANSIC))
 	}
 	builder.WriteByte(')')
 	return builder.String()

@@ -170,6 +170,7 @@ type Account struct {
 	LoadFactor              *int            `json:"load_factor,omitempty"`
 	Priority                int             `json:"priority"`
 	RateMultiplier          float64         `json:"rate_multiplier"`
+	UpstreamGroup           *string         `json:"upstream_group,omitempty"`
 	Status                  string          `json:"status"`
 	ErrorMessage            string          `json:"error_message"`
 	LastUsedAt              *time.Time      `json:"last_used_at"`

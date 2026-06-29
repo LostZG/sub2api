@@ -131,12 +131,15 @@
             </span>
           </template>
 
-          <template #cell-account_count="{ value }">
-            <span
-              class="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800 dark:bg-dark-600 dark:text-gray-300"
+          <template #cell-account_count="{ row, value }">
+            <button
+              type="button"
+              @click="openAccountsDialog(row.base_url)"
+              class="inline-flex cursor-pointer items-center rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800 transition-colors hover:bg-primary-100 hover:text-primary-700 dark:bg-dark-600 dark:text-gray-300 dark:hover:bg-primary-900/40"
+              :title="t('admin.channelProviders.accountsDialog.title', { name: row.base_url })"
             >
               {{ value }}
-            </span>
+            </button>
           </template>
 
           <template #cell-sync_balance="{ row }">
@@ -164,6 +167,12 @@
       </template>
     </TablePageLayout>
   </AppLayout>
+
+  <ChannelProviderAccountsDialog
+    :show="accountsDialogShow"
+    :baseURL="accountsDialogBaseURL"
+    @close="closeAccountsDialog"
+  />
 </template>
 
 <script setup lang="ts">
@@ -179,6 +188,7 @@ import DataTable from '@/components/common/DataTable.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import Toggle from '@/components/common/Toggle.vue'
 import Icon from '@/components/icons/Icon.vue'
+import ChannelProviderAccountsDialog from './ChannelProviderAccountsDialog.vue'
 
 const { t } = useI18n()
 
@@ -189,6 +199,20 @@ const refreshingAll = ref(false)
 const savingBaseUrl = ref<string>('')
 const errorMessage = ref('')
 const successMessage = ref('')
+
+// 账号弹框状态
+const accountsDialogShow = ref(false)
+const accountsDialogBaseURL = ref<string | null>(null)
+
+function openAccountsDialog(baseURL: string) {
+  accountsDialogBaseURL.value = baseURL
+  accountsDialogShow.value = true
+}
+
+function closeAccountsDialog() {
+  accountsDialogShow.value = false
+  accountsDialogBaseURL.value = null
+}
 
 // 行内编辑草稿：base_url → 草稿值。仅记录用户改动过的字段，未改动的回填原始值。
 // 后端 updateProvider 是全字段更新，因此保存时三字段一起提交（取草稿或原值）。
