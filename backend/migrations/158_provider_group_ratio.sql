@@ -5,9 +5,9 @@
 -- 渠道号商新增 group_ratio（/api/pricing 返回的分组→倍率映射）与
 -- group_ratio_checked_at（最近刷新时间）。幂等。
 
-ALTER TABLE IF NOT EXISTS accounts
+ALTER TABLE accounts
   ADD COLUMN IF NOT EXISTS upstream_group VARCHAR(100);
 
-ALTER TABLE IF NOT EXISTS channel_providers
+ALTER TABLE channel_providers
   ADD COLUMN IF NOT EXISTS group_ratio JSONB,
   ADD COLUMN IF NOT EXISTS group_ratio_checked_at TIMESTAMPTZ;
