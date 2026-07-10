@@ -517,6 +517,7 @@ export default {
       disableUser: 'Disable User',
       enableUser: 'Enable User',
       viewApiKeys: 'View API Keys',
+      usageRecords: 'Usage',
       groups: 'Groups',
       apiKeys: 'API Keys',
       userApiKeys: 'User API Keys',
