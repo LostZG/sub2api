@@ -712,4 +712,51 @@ export default {
     },
 
     // Accounts
+
+    // Channel Providers
+    channelProviders: {
+      title: 'Channel Providers',
+      description: 'Aggregated by upstream provider (baseUrl); manage recharge amounts and balance refresh',
+      refresh: 'Refresh',
+      refreshAll: 'Refresh All',
+      refreshSuccess: 'Balance refreshed successfully',
+      refreshFailed: 'Refresh failed',
+      saveSuccess: 'Recharge amount saved',
+      noProviders: 'No channel providers',
+      invalidAmount: 'Invalid amount; must be a number >= 0',
+      invalidQuota: 'Invalid quota per unit; must be a positive integer',
+      quotaHint: 'NewAPI only',
+      refreshAllSummary: 'Refresh complete: {ok} succeeded, {failed} failed, {skipped} skipped',
+      columns: {
+        baseUrl: 'Base URL',
+        displayName: 'Name',
+        rechargeAmount: 'Recharge',
+        quotaPerUnit: 'Quota/USD',
+        balance: 'Balance',
+        balanceCheckedAt: 'Checked At',
+        accountCount: 'Accounts',
+        syncBalance: 'Sync Balance',
+        actions: 'Actions',
+      },
+      accountsDialog: {
+        title: 'Accounts under "{name}"',
+        refreshGroupRatio: 'Refresh Group Ratio',
+        lastRefresh: 'Last refresh',
+        noRatio: 'Group ratio not refreshed yet',
+        noUpstreamGroup: 'No upstream group set for this account',
+        refreshSuccess: 'Group ratio refreshed',
+        refreshFailed: 'Failed to refresh group ratio',
+        columns: {
+          name: 'Name',
+          id: 'Account ID',
+          platform: 'Platform',
+          status: 'Status',
+          priority: 'Priority',
+          rateMultiplier: 'Rate Multiplier',
+          lastUsedAt: 'Last Used',
+          upstreamGroup: 'Upstream Group',
+          latestRatio: 'Latest Ratio',
+        },
+      },
+    }
 }

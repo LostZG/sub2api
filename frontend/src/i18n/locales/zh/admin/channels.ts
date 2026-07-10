@@ -710,4 +710,51 @@ export default {
     },
 
     // Accounts Management
+
+    // Channel Providers
+    channelProviders: {
+      title: '渠道号商',
+      description: '按上游渠道商（baseUrl）维度聚合，管理充值金额与余额刷新',
+      refresh: '刷新余额',
+      refreshAll: '刷新全部',
+      refreshSuccess: '余额刷新成功',
+      refreshFailed: '刷新失败',
+      saveSuccess: '充值金额已保存',
+      noProviders: '暂无渠道号商',
+      invalidAmount: '充值金额无效，须为不小于 0 的数字',
+      invalidQuota: '换算系数无效，须为正整数',
+      quotaHint: '仅 NewAPI 类换算用',
+      refreshAllSummary: '刷新完成：成功 {ok} 个，失败 {failed} 个，跳过 {skipped} 个',
+      columns: {
+        baseUrl: 'Base URL',
+        displayName: '名称',
+        rechargeAmount: '充值金额',
+        quotaPerUnit: '换算系数',
+        balance: '余额',
+        balanceCheckedAt: '检查时间',
+        accountCount: '账号数',
+        syncBalance: '同步余额',
+        actions: '操作',
+      },
+      accountsDialog: {
+        title: '号商「{name}」下的账号',
+        refreshGroupRatio: '刷新分组倍率',
+        lastRefresh: '上次刷新',
+        noRatio: '尚未刷新分组倍率',
+        noUpstreamGroup: '该账号未填上游分组',
+        refreshSuccess: '分组倍率已刷新',
+        refreshFailed: '刷新分组倍率失败',
+        columns: {
+          name: '账号名称',
+          id: '账号ID',
+          platform: '平台类型',
+          status: '状态',
+          priority: '优先级',
+          rateMultiplier: '账号倍率',
+          lastUsedAt: '最近使用',
+          upstreamGroup: '上游分组',
+          latestRatio: '最新倍率',
+        },
+      },
+    }
 }
