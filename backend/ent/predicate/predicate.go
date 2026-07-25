@@ -51,6 +51,9 @@ type ChannelMonitorRequestTemplate func(*sql.Selector)
 // ChannelProvider is the predicate function for channelprovider builders.
 type ChannelProvider func(*sql.Selector)
 
+// CompositeModelRoute is the predicate function for compositemodelroute builders.
+type CompositeModelRoute func(*sql.Selector)
+
 // ErrorPassthroughRule is the predicate function for errorpassthroughrule builders.
 type ErrorPassthroughRule func(*sql.Selector)
 
