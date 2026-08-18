@@ -472,7 +472,12 @@ func beginGroupUsageRollupTriggerTestTx(t *testing.T, ctx context.Context, schem
 }
 
 func setGroupUsageRollupTriggerSearchPath(ctx context.Context, tx *sql.Tx, quotedSchema string) error {
-	_, err := tx.ExecContext(ctx, "SET LOCAL search_path TO "+quotedSchema)
+	// 触发器以会话时区计算日志归属日期（migrations/223），而本文件用例的 seed 与断言
+	// 均以 Asia/Shanghai 为"今天"。integration harness 的 DSN 固定 TimeZone=UTC，当 UTC
+	// 与上海日期不同（每天上海 0:00-8:00）时，CURRENT_TIMESTAMP 写入会被触发器按 UTC
+	// 归桶并把水位回退到 UTC 日期，导致断言失败。这里显式固定会话时区；
+	// 需要其他时区的用例在同一事务内 SET LOCAL TIME ZONE 覆盖即可。
+	_, err := tx.ExecContext(ctx, "SET LOCAL search_path TO "+quotedSchema+`; SET LOCAL TIME ZONE 'Asia/Shanghai'`)
 	return err
 }
 
