@@ -1,0 +1,28 @@
+version: 1
+# govulncheck 可达漏洞豁免清单（fork 维护，配合 tools/check_govulncheck_exceptions.py）。
+# 规则：每个被 govulncheck 报出的 symbol 级可达漏洞必须在此登记并附过期时间；
+# 过期后 CI 失败，强制重新评估（例如上游迁移 pgx 后即可删除）。
+exceptions:
+  # lib/pq v1.10.9：官方已停止维护（Fixed in N/A），以下漏洞均要求攻击者
+  # 控制 PostgreSQL 服务器或位于认证中间人位置。本项目 PG 连接串由管理员
+  # 配置且均为可信内网实例，攻击面有限；待上游迁移 jackc/pgx 后移除。
+  - id: "GO-2026-6166"
+    reason: "GSS 认证无互证；仅可信自建 PG，不启用 GSS 认证"
+    mitigation: "连接串由管理员配置，仅指向可信实例；跟随 upstream 迁移 pgx"
+    expires_on: "2026-11-19"
+  - id: "GO-2026-6168"
+    reason: "SCRAM 认证迭代无上限致 CPU DoS；需恶意 PG 服务器配合"
+    mitigation: "仅可信自建 PG；跟随 upstream 迁移 pgx"
+    expires_on: "2026-11-19"
+  - id: "GO-2026-6170"
+    reason: "畸形 backend frame length 致 panic；需恶意 PG 服务器"
+    mitigation: "仅可信自建 PG；跟随 upstream 迁移 pgx"
+    expires_on: "2026-11-19"
+  - id: "GO-2026-6171"
+    reason: "畸形 RowDescription/DataRow 致 panic；需恶意 PG 服务器"
+    mitigation: "仅可信自建 PG；跟随 upstream 迁移 pgx"
+    expires_on: "2026-11-19"
+  - id: "GO-2026-6172"
+    reason: "backend frame lengths 预校验内存耗尽；需恶意 PG 服务器"
+    mitigation: "仅可信自建 PG；跟随 upstream 迁移 pgx"
+    expires_on: "2026-11-19"
