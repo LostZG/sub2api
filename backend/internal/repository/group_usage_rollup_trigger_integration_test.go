@@ -151,6 +151,7 @@ func TestGroupUsageRollupTriggerSerializesInsertTransactionAcrossMidnight(t *tes
 
 	insertTx := beginGroupUsageRollupTriggerTestTx(t, ctx, schema)
 	defer func() { _ = insertTx.Rollback() }()
+	require.NoError(t, setGroupUsageRollupTriggerTimeZone(ctx, insertTx, "Asia/Shanghai"))
 	var insertBackendPID int
 	require.NoError(t, insertTx.QueryRowContext(ctx, "SELECT pg_backend_pid()").Scan(&insertBackendPID))
 
@@ -206,6 +207,7 @@ func TestGroupUsageRollupTriggerKeepsWatermarkForTodayInsert(t *testing.T) {
 
 	tx := beginGroupUsageRollupTriggerTestTx(t, ctx, schema)
 	defer func() { _ = tx.Rollback() }()
+	require.NoError(t, setGroupUsageRollupTriggerTimeZone(ctx, tx, "Asia/Shanghai"))
 	_, err := tx.ExecContext(ctx, `
 		INSERT INTO groups (id) VALUES (10);
 		INSERT INTO users (id) VALUES (1);
@@ -478,6 +480,11 @@ func setGroupUsageRollupTriggerSearchPath(ctx context.Context, tx *sql.Tx, quote
 	// 归桶并把水位回退到 UTC 日期，导致断言失败。这里显式固定会话时区；
 	// 需要其他时区的用例在同一事务内 SET LOCAL TIME ZONE 覆盖即可。
 	_, err := tx.ExecContext(ctx, "SET LOCAL search_path TO "+quotedSchema+`; SET LOCAL TIME ZONE 'Asia/Shanghai'`)
+	return err
+}
+
+func setGroupUsageRollupTriggerTimeZone(ctx context.Context, tx *sql.Tx, name string) error {
+	_, err := tx.ExecContext(ctx, "SET LOCAL TIME ZONE "+pq.QuoteLiteral(name))
 	return err
 }
 
