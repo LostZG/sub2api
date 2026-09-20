@@ -208,7 +208,6 @@ export default {
     channelManagement: 'Channels',
     channelPricing: 'Channel Pricing',
     channelProviders: 'Channel Providers',
-    recharge: 'Recharge',
     channelMonitor: 'Channel Monitor',
     channelStatus: 'Channel Status',
     riskControl: 'Risk Control',
