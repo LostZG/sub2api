@@ -105,6 +105,7 @@ func TestAccountReadableSnapshot_DenylistTripwire(t *testing.T) {
 		"TempUnschedulableUntil": {}, "TempUnschedulableReason": {},
 		"SessionWindowStart": {}, "SessionWindowEnd": {}, "SessionWindowStatus": {},
 		"ParentAccountID": {}, "QuotaDimension": {}, "GroupIDs": {},
+		"UpstreamGroup": {}, // fork-only: 上游 NewAPI 分组名（channelProvider），非敏感只读元数据
 	}
 	tp := reflect.TypeOf(Account{})
 	for i := 0; i < tp.NumField(); i++ {
